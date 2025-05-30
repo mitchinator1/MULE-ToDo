@@ -1,0 +1,7 @@
+#!/usr.bin/with-contenv bashio
+# This script is called by s6-overlay when the 'run' script exits.
+# It receives the exit code as $1.
+
+bashio::log.warning "My To-Do App service exited with code $1"
+
+# You can add cleanup here, e.g., if you had temporary files.
