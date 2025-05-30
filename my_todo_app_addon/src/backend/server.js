@@ -1,9 +1,16 @@
+console.log("SERVER.JS: STARTING EXECUTION");
+
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose(); // Use verbose for more detailed logging
 const cors = require('cors'); // Import cors
 
 const app = express();
 const PORT = process.env.PORT || 3000; // Use port 3000 by default
+app.listen(PORT, '0.0.0.0', () => { // Ensure listening on all interfaces
+    console.log(`SERVER.JS: Node.js server listening on port ${PORT}`);
+});
+
+console.log("SERVER.JS: END OF SCRIPT REACHED (this should not happen immediately after listen)");
 
 app.use(cors()); // Enable CORS for all routes (important for development)
 app.use(express.json()); // Enable parsing of JSON request bodies
