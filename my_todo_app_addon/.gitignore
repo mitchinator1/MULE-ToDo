@@ -1,0 +1,10 @@
+# Node.js
+node_modules/
+.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+todo.db*
+# Optional: If you want to exclude your local database file from Git
+# For Docker deployments, the DB is managed by a volume, so it's often fine to exclude
+backend/todo.db
