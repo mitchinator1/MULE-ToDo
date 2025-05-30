@@ -1,7 +1,7 @@
-name: Test Add-on
-version: 0.0.1
-slug: test_addon
-description: A test add-on
+name: My To-Do App
+version: 0.1.0
+slug: my_todo_app
+description: A simple to-do list application for Home Assistant.
 arch:
   - aarch64
   - amd64
@@ -11,5 +11,9 @@ arch:
 startup: application
 boot: auto
 ports:
-  3000/tcp: 8080
-image: myusername/test_addon-{arch}
+  3000/tcp: 8080 # This maps container port 3000 to host port 8080
+image: myusername/my_todo_app_addon-{arch}
+options:
+  port_internal: 3000 # Define an internal port option that run.sh can read
+schema:
+  port_internal: "int?" # Make it an optional integer
