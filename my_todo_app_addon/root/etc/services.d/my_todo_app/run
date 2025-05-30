@@ -1,7 +1,7 @@
 #!/usr/bin/with-contenv bashio
 set -e
 
-bashio::log.info "s6-overlay service 'my_todo_app' is starting Node.js backend..."
+bashio::log.info "s6-overlay service 'my_todo_app' is starting Node.js backend via npm start..."
 
 export PORT=$(bashio::config 'port_internal' || echo 3000)
 export DATABASE_PATH="/data/todo.db"
@@ -11,6 +11,6 @@ mkdir -p "$(dirname "${DATABASE_PATH}")"
 bashio::log.info "Database path: ${DATABASE_PATH}"
 bashio::log.info "Server will listen on port: ${PORT}"
 
-# !!! CRUCIAL CHANGE: Use the absolute path to node here !!!
-# Replace /usr/bin/node with the actual path you found (if different)
-exec /usr/bin/node /app/backend/server.js
+# !!! ALTERNATIVE CRUCIAL CHANGE: Use npm start !!!
+# Make sure your package.json has a "start" script, e.g., "start": "node server.js"
+exec npm start --prefix /app/backend
