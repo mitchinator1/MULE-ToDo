@@ -1,26 +1,13 @@
 {
-  "name": "My To-Do App",
-  "version": "0.1.0",
-  "slug": "my_todo_app",
-  "description": "A simple to-do list application for Home Assistant.",
+  "name": "Test Add-on",
+  "version": "0.0.1",
+  "slug": "test_addon",
+  "description": "A test add-on",
   "arch": ["aarch64", "amd64", "armhf", "armv7", "i386"],
   "startup": "application",
+  "boot": "auto",
   "ports": {
     "3000/tcp": 8080
   },
-  "ports_description": {
-    "3000/tcp": "Web interface for the To-Do App"
-  },
-  "url": "https://github.com/mitchinator1/MULE-ToDo", // <--- UPDATE THIS!
-  "panel_icon": "mdi:checkbox-marked-circle-outline",
-  "boot": "auto",
-  "auto_update": false,
-  "privileged": false,
-  "options": {
-    "log_level": "info"
-  },
-  "schema": {
-    "log_level": "list(trace|debug|info|notice|warning|error|fatal)?"
-  },
-  "image": "yourusername/my_todo_app_addon-{arch}"
+  "image": "myusername/test_addon-{arch}"
 }
