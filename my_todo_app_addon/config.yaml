@@ -1,12 +1,28 @@
-name: "My To-Do App"
-version: "1.0.0"
-slug: "my_todo_app"
-description: "Node.js + SQLite to-do app with frontend"
+name: My To-Do App
+version: 0.1.0
+slug: my_todo_app
+description: A simple to-do list application for Home Assistant.
 arch:
-  - amd64
   - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+# !!! IMPORTANT: Change startup to 'services' as per tutorial's server example !!!
 startup: services
 boot: auto
 init: false
 ports:
-  3000/tcp: 3000
+  3000/tcp: 8080
+options:
+  port_internal: 3000
+schema:
+  port_internal: "int?"
+# !!! NEW: Pass config options as environment variables to the container !!!
+# Node.js will read process.env.PORT and process.env.DATABASE_PATH
+environment:
+  PORT: "[% port_internal %]" # This maps the config option to an environment variable
+  DATABASE_PATH: "/data/todo.db" # This is a static path
+build:
+  context: .
+  dockerfile: Dockerfile
