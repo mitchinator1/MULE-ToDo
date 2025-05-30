@@ -1,16 +1,29 @@
 #!/usr/bin/with-contenv bashio
+# Use the same shebang as run.sh
+# This script will be run by s6-overlay when your service starts.
+
 set -e
 
-bashio::log.info "s6-overlay service 'my_todo_app' is starting Node.js backend via npm start..."
+bashio::log.info "s6-overlay service 'my_todo_app' is starting Node.js backend..."
 
 export PORT=$(bashio::config 'port_internal' || echo 3000)
 export DATABASE_PATH="/data/todo.db"
 
+# Ensure the database directory exists (if not created by Dockerfile)
 mkdir -p "$(dirname "${DATABASE_PATH}")"
 
 bashio::log.info "Database path: ${DATABASE_PATH}"
 bashio::log.info "Server will listen on port: ${PORT}"
 
-# !!! ALTERNATIVE CRUCIAL CHANGE: Use npm start !!!
-# Make sure your package.json has a "start" script, e.g., "start": "node server.js"
-exec npm start --prefix /app/backend
+# Find Node.js executable (still good practice)
+NODE_BIN=$(which node)
+if [ -z "$NODE_BIN" ]; then
+    bashio::log.error "Node.js executable not found in PATH!"
+    exit 1
+fi
+
+# !!! CRUCIAL CHANGE: Use s6-setuidgid to launch the Node.js application !!!
+# This runs the command as the effective user/group (usually root, which is default
+# for add-ons anyway). It might handle the PID 1 transition more robustly within s6.
+# We explicitly set the user and group to root (0) to be absolutely sure.
+exec s6-setuidgid 0:0 "$NODE_BIN" /app/backend/server.js
