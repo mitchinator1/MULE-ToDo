@@ -7,8 +7,8 @@ RUN apk add --no-cache nodejs npm
 WORKDIR /app
 
 # Copy your application source code
-COPY src/backend /app/backend
-COPY src/frontend /app/frontend
+COPY backend /app/backend
+COPY frontend /app/frontend
 
 # Install Node.js dependencies for the backend
 RUN npm install --prefix /app/backend
