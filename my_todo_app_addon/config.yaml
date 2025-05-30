@@ -13,13 +13,6 @@ boot: auto
 init: false
 ports:
   3000/tcp: 8080
-options:
-  port_internal: 3000
-schema:
-  port_internal: "int?"
 build:
-  # The context is the directory where the Dockerfile is located.
-  # Since Dockerfile is directly in my_todo_app_addon/, context is '.'
   context: .
-  # The Dockerfile itself
   dockerfile: Dockerfile
