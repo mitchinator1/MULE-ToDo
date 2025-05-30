@@ -10,6 +10,5 @@ mkdir -p "$(dirname "${DATABASE_PATH}")"
 bashio::log.info "Database path: ${DATABASE_PATH}"
 bashio::log.info "Server will listen on port: ${PORT}"
 
-# No `exec`, just start the process (s6-overlay will supervise it)
-echo "[INFO] Starting Node.js backend..."
+bashio::log.info "Starting Node.js backend..."
 exec node /app/server.js
