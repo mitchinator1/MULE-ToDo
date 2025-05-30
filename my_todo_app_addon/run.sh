@@ -17,4 +17,4 @@ if [ -z "$NODE_BIN" ]; then
 fi
 
 # This is the critical line: exec the Node.js process.
-exec "$NODE_BIN" /app/backend/server.js
+exec npm start --prefix /app/backend
