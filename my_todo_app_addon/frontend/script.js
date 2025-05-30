@@ -819,7 +819,7 @@ const TaskManager = {
 // When you deploy to your Raspberry Pi, you will update this to your Pi's IP address
 // e.g., 'http://192.168.1.100/api/tasks' if frontend is also on port 80
 // or 'http://192.168.1.100:3000/api/tasks' if your backend is exposed directly on port 3000
-const API_BASE_URL = 'http://homeassistant.local:8080/api'; // For local development
+const API_BASE_URL = 'http://homeassistant.local:8080/api/tasks'; // For local development
 
 const APIManager = {
     // Helper function to handle common fetch logic (error handling, JSON parsing)
