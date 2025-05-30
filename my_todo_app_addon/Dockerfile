@@ -1,16 +1,20 @@
+# Use a small Node.js base image
 FROM node:20-alpine
 
-WORKDIR /app
+# Set working directory
+WORKDIR /opt
 
-# Install app dependencies
+# Copy package files and install dependencies
 COPY package*.json ./
 RUN npm install
 
-# Copy app code
-COPY . .
+# Copy app files
+COPY server.js ./
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
 
-# Set permissions for s6-overlay (if needed)
-RUN chmod +x /app/run
+# Expose port
+EXPOSE 3000
 
-# Tell s6-overlay this is the service to start
-CMD [ "/app/run" ]
+# Run the server
+CMD [ "/run.sh" ]
