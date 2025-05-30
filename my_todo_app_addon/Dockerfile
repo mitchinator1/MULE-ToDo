@@ -1,20 +1,16 @@
-ARG BUILD_FROM
-FROM $BUILD_FROM
-
-RUN apk add --no-cache nodejs npm
+FROM node:20-alpine
 
 WORKDIR /app
 
-COPY src/backend /app/backend
-COPY src/frontend /app/frontend
+# Install app dependencies
+COPY package*.json ./
+RUN npm install
 
-RUN npm install --prefix /app/backend
+# Copy app code
+COPY . .
 
-RUN mkdir -p /data
+# Set permissions for s6-overlay (if needed)
+RUN chmod +x /app/run
 
-COPY root/ /
-
-RUN chmod a+x /etc/services.d/my_todo_app/run
-RUN chmod a+x /etc/services.d/my_todo_app/finish
-
-EXPOSE 3000
+# Tell s6-overlay this is the service to start
+CMD [ "/app/run" ]
