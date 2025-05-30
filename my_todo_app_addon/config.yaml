@@ -10,6 +10,7 @@ arch:
   - i386
 startup: application
 boot: auto
+init: false
 ports:
   3000/tcp: 8080
 options:
