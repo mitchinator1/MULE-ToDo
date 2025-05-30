@@ -25,42 +25,42 @@ const MULE = (() => {
         static initStyles() {
             if (!StyleManager.styleSheets.has(this.styleId)) {
                 const styles = `
-					.snackbar {
-						display: flex;
-						min-width: 250px;
-						background-color: #4B286D;
-						color: #fff;
-						text-align: center;
-						border-radius: 4px;
-						padding: 16px;
-						position: fixed;
-						z-index: 1000;
-						left: 50%;
-						bottom: 30px;
-						font-size: 17px;
-						transform: translateX(-50%);
-						justify-content: center;
-						align-items: center;
-						opacity: 0;
-						transition: all 0.5s ease;
-					}
-					.snackbar.show {
-						opacity: 1;
-					}
-					.snackbar.hide {
-						opacity: 0;
-					}
-					.snackbar.success {
-						background-color: #43a047;
-					}
-					.snackbar.warning {
-						background-color: #e6e600;
-						color: #000;
-					}
-					.snackbar.error {
-						background-color: #d32f2f;
-					}
-					`;
+			.snackbar {
+				display: flex;
+				min-width: 250px;
+				background-color: #4B286D;
+				color: #fff;
+				text-align: center;
+				border-radius: 4px;
+				padding: 16px;
+				position: fixed;
+				z-index: 1000;
+				left: 50%;
+				bottom: 30px;
+				font-size: 17px;
+				transform: translateX(-50%);
+				justify-content: center;
+				align-items: center;
+				opacity: 0;
+				transition: all 0.5s ease;
+			}
+			.snackbar.show {
+				opacity: 1;
+			}
+			.snackbar.hide {
+				opacity: 0;
+			}
+			.snackbar.success {
+				background-color: #43a047;
+			}
+			.snackbar.warning {
+				background-color: #e6e600;
+				color: #000;
+			}
+			.snackbar.error {
+				background-color: #d32f2f;
+			}
+			`;
                 StyleManager.addStyles(this.styleId, styles);
             }
         }
@@ -175,183 +175,183 @@ const MULE = (() => {
         static initStyles() {
             if (!StyleManager.styleSheets.has(this.styleId)) {
                 const styles = `
-					/* Common styles */
-					.throbber-container {
-						text-align: initial;
-						border: none;
-						display: flex;
-						justify-content: center;
-						position: fixed;
-						top: 0;
-						left: 0;
-						width: 100%;
-						height: 100%;
-						background-color: rgba(255, 255, 255, 0.7);
-						z-index: 1000;
-					}
-					.throbber-container .throbber {
-						position: absolute;
-						top: 75%;
-					}
-					.throbber-container-inline {
-						text-align: initial;
-						border: none;
-						display: flex;
-						justify-content: center;
-						align-items: center;
-						position: fixed;
-						padding: 12px;
-						background-color: rgba(255, 255, 255, 0.9);
-						border-radius: 4px;
-						box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-						z-index: 1000;
-					}
-
-					/* Positioning styles for inline mode */
-					.throbber-container-inline[data-position="top-left"] { 
-						top: 16px; left: 16px;
-					}
-
-					.throbber-container-inline[data-position="top-middle"] { 
-						top: 16px; left: 50%; transform: translateX(-50%);
-					}
-
-					.throbber-container-inline[data-position="top-right"] { 
-						top: 16px; right: 16px;
-					}
-
-					.throbber-container-inline[data-position="bottom-left"] { 
-						bottom: 16px; left: 16px;
-					}
-
-					.throbber-container-inline[data-position="bottom-middle"] { 
-						bottom: 16px; left: 50%; transform: translateX(-50%);
-					}
-
-					.throbber-container-inline[data-position="bottom-right"] { 
-						bottom: 16px; right: 16px;
-					}
-
-					.throbber-container-inline .throbber {
-						position: relative;
-						top: initial;
-					}
-					.throbber {
-						--uib-size: 40px;
-						--uib-color: black;
-						--uib-speed: 1.5s;
-						position: relative;
-						display: flex;
-						align-items: center;
-						justify-content: center;
-						height: var(--uib-size);
-						width: var(--uib-size);
-					}
-					.throbber-message {
-						margin-right: 12px;
-						font-size: 14px;
-						color: var(--uib-color);
-					}
-					.throbber-message.minimal {
-						font-size: 12px;
-						opacity: 0.8;
-					}
-					
-					/* Rotate Animation */
-					.throbber-rotate {
-						animation: throbber-smoothRotate calc(var(--uib-speed) * 1.8) linear infinite;
-					}
-					.throbber-rotate .throbber-dot {
-						position: absolute;
-						top: 0;
-						left: 0;
-						display: flex;
-						align-items: flex-start;
-						justify-content: center;
-						height: 100%;
-						width: 100%;
-						animation: throbber-rotate var(--uib-speed) ease-in-out infinite;
-					}
-					.throbber-rotate .throbber-dot::before {
-						content: '';
-						height: calc(var(--uib-size) * 0.17);
-						width: calc(var(--uib-size) * 0.17);
-						border-radius: 50%;
-						background-color: var(--uib-color);
-						transition: background-color 0.3s ease;
-					}
-					
-					.throbber-rotate .throbber-dot:nth-child(2) { 
-						animation-delay: calc(var(--uib-speed) * -0.835 * 0.5);
-					}
-
-					.throbber-rotate .throbber-dot:nth-child(3) { 
-						animation-delay: calc(var(--uib-speed) * -0.668 * 0.5);
-					}
-
-					.throbber-rotate .throbber-dot:nth-child(4) {
-						animation-delay: calc(var(--uib-speed) * -0.501 * 0.5);
-					}
-
-					.throbber-rotate .throbber-dot:nth-child(5) {
-						animation-delay: calc(var(--uib-speed) * -0.334 * 0.5);
-					}
-
-					.throbber-rotate .throbber-dot:nth-child(6) {
-						animation-delay: calc(var(--uib-speed) * -0.167 * 0.5);
-					}
-					
-					@keyframes throbber-rotate {
-						0% { transform: rotate(0deg); }
-						65%, 100% { transform: rotate(360deg); }
-					}
-					@keyframes throbber-smoothRotate {
-						0% { transform: rotate(0deg); }
-						100% { transform: rotate(360deg); }
-					}
-					
-					/* Pulse Animation */
-					.throbber-pulse {
-					width: auto;
-					height: var(--uib-size);
-					display: flex;
-					justify-content: center;
-					align-items: center;
-					gap: calc(var(--uib-size) * 0.15);
-					}
-					.throbber-pulse .throbber-dot {
-					width: calc(var(--uib-size) * 0.25);
-					height: calc(var(--uib-size) * 0.25);
-					border-radius: 50%;
-					background-color: var(--uib-color);
-					animation: pulse-animation var(--uib-speed) ease-in-out infinite;
-					}
-
-					@keyframes pulse-animation {
-					0%, 100% { transform: scale(0.5); opacity: 0.3; }
-					50% { transform: scale(1); opacity: 1; }
-					}
-					/* Bounce Animation */
-					.throbber-bounce {
-					width: auto;
-					height: var(--uib-size);
-					display: flex;
-					justify-content: center;
-					align-items: flex-end;
-					gap: calc(var(--uib-size) * 0.15);
-					}
-					.throbber-bounce .throbber-dot {
-					width: calc(var(--uib-size) * 0.25);
-					height: calc(var(--uib-size) * 0.25);
-					border-radius: 50%;
-					background-color: var(--uib-color);
-					animation: bounce-animation var(--uib-speed) ease-in-out infinite;
-					}
-					@keyframes bounce-animation {
-					0%, 100% { transform: translateY(0); }
-					50% { transform: translateY(calc(var(--uib-size) * -0.75)); }
-					}
-					`;
+			/* Common styles */
+			.throbber-container {
+				text-align: initial;
+				border: none;
+				display: flex;
+				justify-content: center;
+				position: fixed;
+				top: 0;
+				left: 0;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(255, 255, 255, 0.7);
+				z-index: 1000;
+			}
+			.throbber-container .throbber {
+				position: absolute;
+				top: 75%;
+			}
+			.throbber-container-inline {
+				text-align: initial;
+				border: none;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				position: fixed;
+				padding: 12px;
+				background-color: rgba(255, 255, 255, 0.9);
+				border-radius: 4px;
+				box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+				z-index: 1000;
+			}
+	
+			/* Positioning styles for inline mode */
+			.throbber-container-inline[data-position="top-left"] { 
+				top: 16px; left: 16px;
+			}
+	
+			.throbber-container-inline[data-position="top-middle"] { 
+				top: 16px; left: 50%; transform: translateX(-50%);
+			}
+	
+			.throbber-container-inline[data-position="top-right"] { 
+				top: 16px; right: 16px;
+			}
+	
+			.throbber-container-inline[data-position="bottom-left"] { 
+				bottom: 16px; left: 16px;
+			}
+	
+			.throbber-container-inline[data-position="bottom-middle"] { 
+				bottom: 16px; left: 50%; transform: translateX(-50%);
+			}
+	
+			.throbber-container-inline[data-position="bottom-right"] { 
+				bottom: 16px; right: 16px;
+			}
+	
+			.throbber-container-inline .throbber {
+				position: relative;
+				top: initial;
+			}
+			.throbber {
+				--uib-size: 40px;
+				--uib-color: black;
+				--uib-speed: 1.5s;
+				position: relative;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				height: var(--uib-size);
+				width: var(--uib-size);
+			}
+			.throbber-message {
+				margin-right: 12px;
+				font-size: 14px;
+				color: var(--uib-color);
+			}
+			.throbber-message.minimal {
+				font-size: 12px;
+				opacity: 0.8;
+			}
+			
+			/* Rotate Animation */
+			.throbber-rotate {
+				animation: throbber-smoothRotate calc(var(--uib-speed) * 1.8) linear infinite;
+			}
+			.throbber-rotate .throbber-dot {
+				position: absolute;
+				top: 0;
+				left: 0;
+				display: flex;
+				align-items: flex-start;
+				justify-content: center;
+				height: 100%;
+				width: 100%;
+				animation: throbber-rotate var(--uib-speed) ease-in-out infinite;
+			}
+			.throbber-rotate .throbber-dot::before {
+				content: '';
+				height: calc(var(--uib-size) * 0.17);
+				width: calc(var(--uib-size) * 0.17);
+				border-radius: 50%;
+				background-color: var(--uib-color);
+				transition: background-color 0.3s ease;
+			}
+			
+			.throbber-rotate .throbber-dot:nth-child(2) { 
+				animation-delay: calc(var(--uib-speed) * -0.835 * 0.5);
+			}
+	
+			.throbber-rotate .throbber-dot:nth-child(3) { 
+				animation-delay: calc(var(--uib-speed) * -0.668 * 0.5);
+			}
+	
+			.throbber-rotate .throbber-dot:nth-child(4) {
+				animation-delay: calc(var(--uib-speed) * -0.501 * 0.5);
+			}
+	
+			.throbber-rotate .throbber-dot:nth-child(5) {
+				animation-delay: calc(var(--uib-speed) * -0.334 * 0.5);
+			}
+	
+			.throbber-rotate .throbber-dot:nth-child(6) {
+				animation-delay: calc(var(--uib-speed) * -0.167 * 0.5);
+			}
+			
+			@keyframes throbber-rotate {
+				0% { transform: rotate(0deg); }
+				65%, 100% { transform: rotate(360deg); }
+			}
+			@keyframes throbber-smoothRotate {
+				0% { transform: rotate(0deg); }
+				100% { transform: rotate(360deg); }
+			}
+			
+			/* Pulse Animation */
+			.throbber-pulse {
+			width: auto;
+			height: var(--uib-size);
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			gap: calc(var(--uib-size) * 0.15);
+			}
+			.throbber-pulse .throbber-dot {
+			width: calc(var(--uib-size) * 0.25);
+			height: calc(var(--uib-size) * 0.25);
+			border-radius: 50%;
+			background-color: var(--uib-color);
+			animation: pulse-animation var(--uib-speed) ease-in-out infinite;
+			}
+	
+			@keyframes pulse-animation {
+			0%, 100% { transform: scale(0.5); opacity: 0.3; }
+			50% { transform: scale(1); opacity: 1; }
+			}
+			/* Bounce Animation */
+			.throbber-bounce {
+			width: auto;
+			height: var(--uib-size);
+			display: flex;
+			justify-content: center;
+			align-items: flex-end;
+			gap: calc(var(--uib-size) * 0.15);
+			}
+			.throbber-bounce .throbber-dot {
+			width: calc(var(--uib-size) * 0.25);
+			height: calc(var(--uib-size) * 0.25);
+			border-radius: 50%;
+			background-color: var(--uib-color);
+			animation: bounce-animation var(--uib-speed) ease-in-out infinite;
+			}
+			@keyframes bounce-animation {
+			0%, 100% { transform: translateY(0); }
+			50% { transform: translateY(calc(var(--uib-size) * -0.75)); }
+			}
+			`;
                 StyleManager.addStyles(this.styleId, styles);
             }
         }
@@ -819,7 +819,7 @@ const TaskManager = {
 // When you deploy to your Raspberry Pi, you will update this to your Pi's IP address
 // e.g., 'http://192.168.1.100/api/tasks' if frontend is also on port 80
 // or 'http://192.168.1.100:3000/api/tasks' if your backend is exposed directly on port 3000
-const API_BASE_URL = 'http://localhost:3000/api/tasks'; // For local development
+const API_BASE_URL = 'http://homeassistant.local:8080/api'; // For local development
 
 const APIManager = {
     // Helper function to handle common fetch logic (error handling, JSON parsing)
