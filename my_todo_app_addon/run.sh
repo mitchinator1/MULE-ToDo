@@ -1,27 +1,20 @@
 #!/usr/bin/with-contenv bashio
-# This shebang is correct for Home Assistant Add-ons
+# Using with-contenv bashio is still standard, even if we skip bashio::log for now
 
-set -e # Exit immediately if a command exits with a non-zero status.
+set -e
 
-bashio::log.info "Starting My To-Do App backend..."
+# Directly set environment variables.
+# bashio::config is great, but let's test without it being called if possible
+# If your config.yaml always sets port_internal, you can hardcode here for test
+export PORT=3000
+export DATABASE_PATH="/data/todo.db"
 
-# Use bashio::config for port, with a default fallback
-# It's good practice to ensure these are explicitly exported for the Node.js process
-export PORT=$(bashio::config 'port_internal' || echo 3000)
-export DATABASE_PATH="/data/todo.db" # This path is critical for SQLite persistence
-
-# Validate that the Node.js executable can be found
+# Find Node.js executable (good practice, keep this)
 NODE_BIN=$(which node)
 if [ -z "$NODE_BIN" ]; then
-    bashio::log.error "Node.js executable not found in PATH!"
+    echo "ERROR: Node.js executable not found in PATH!" >&2 # Log to stderr
     exit 1
 fi
 
-bashio::log.info "Node.js binary path: ${NODE_BIN}"
-bashio::log.info "Database path: ${DATABASE_PATH}"
-bashio::log.info "Server will listen on port: ${PORT}"
-
-# Execute the Node.js application.
-# The 'exec' command is crucial: it replaces the current shell process (run.sh)
-# with the Node.js process, ensuring Node.js runs as PID 1.
+# This is the critical line: exec the Node.js process.
 exec "$NODE_BIN" /app/backend/server.js
