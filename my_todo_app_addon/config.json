@@ -11,7 +11,7 @@
   "ports_description": {
     "3000/tcp": "Web interface for the To-Do App"
   },
-  "url": "https://github.com/yourusername/your-ha-addons", // <--- UPDATE THIS!
+  "url": "https://github.com/mitchinator1/MULE-ToDo", // <--- UPDATE THIS!
   "panel_icon": "mdi:checkbox-marked-circle-outline",
   "boot": "auto",
   "auto_update": false,
