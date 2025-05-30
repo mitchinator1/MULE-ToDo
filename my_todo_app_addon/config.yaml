@@ -1,18 +1,12 @@
-icename: My To-Do App
-version: 0.1.1
-slug: my_todo_app
-description: A simple to-do list application for Home Assistant.
+name: "Node.js To-Do API"
+version: "1.0.0"
+slug: "node_todo_api"
+description: "A simple Node.js + SQLite to-do list API"
 arch:
-  - aarch64
   - amd64
-  - armhf
-  - armv7
-  - i386
+  - aarch64
 startup: services
 boot: auto
 init: false
 ports:
-  3000/tcp: 8080
-build:
-  context: .
-  dockerfile: Dockerfile
+  3000/tcp: 3000
