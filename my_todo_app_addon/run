@@ -1,3 +1,3 @@
-#!/usr/bin/with-contenv bash
-echo "[INFO] Starting Node.js backend..."
-exec node /app/server.js
+#!/usr/bin/env bash
+echo "[INFO] Starting Node.js server..."
+exec node /opt/backend/server.js
