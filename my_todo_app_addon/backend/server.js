@@ -232,6 +232,10 @@ app.delete('/api/tasks/:id', (req, res) => {
     });
 });
 
+
+
+app.use(express.static('/app/frontend'));
+
 // Start the server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
