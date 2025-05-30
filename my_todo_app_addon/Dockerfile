@@ -15,8 +15,11 @@ RUN mkdir -p /data
 COPY root/ /
 
 RUN chmod a+x /etc/services.d/my_todo_app/run
-RUN chmod a+x /etc/services.d/my_todo_app/finish # If finish is used
+RUN chmod a+x /etc/services.d/my_todo_app/finish
 
 EXPOSE 3000
 
-CMD ["/init"]
+# !!! CRUCIAL TEMPORARY CHANGE: Override the CMD to just run a shell !!!
+# This stops s6-overlay from starting your service automatically.
+# We will manually start it to see the error.
+CMD ["/bin/bash"]
