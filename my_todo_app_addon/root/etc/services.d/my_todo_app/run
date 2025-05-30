@@ -1,21 +1,10 @@
 #!/usr/bin/with-contenv bashio
 set -e
-
 bashio::log.info "s6-overlay service 'my_todo_app' is starting Node.js backend..."
-
 export PORT=$(bashio::config 'port_internal' || echo 3000)
 export DATABASE_PATH="/data/todo.db"
-
 mkdir -p "$(dirname "${DATABASE_PATH}")"
-
 bashio::log.info "Database path: ${DATABASE_PATH}"
 bashio::log.info "Server will listen on port: ${PORT}"
-
-# Find Node.js executable (still good practice)
-NODE_BIN=$(which node)
-if [ -z "$NODE_BIN" ]; then
-    bashio::log.error "Node.js executable not found in PATH!"
-    exit 1
-fi
-
-exec s6-setuidgid 0:0 "$NODE_BIN" /app/backend/server.js
+# This is the line to focus on.
+exec node /app/backend/server.js
