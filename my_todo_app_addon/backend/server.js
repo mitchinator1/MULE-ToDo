@@ -6,11 +6,6 @@ const cors = require('cors'); // Import cors
 
 const app = express();
 const PORT = process.env.PORT || 3000; // Use port 3000 by default
-app.listen(PORT, '0.0.0.0', () => { // Ensure listening on all interfaces
-    console.log(`SERVER.JS: Node.js server listening on port ${PORT}`);
-});
-
-console.log("SERVER.JS: END OF SCRIPT REACHED (this should not happen immediately after listen)");
 
 app.use(cors()); // Enable CORS for all routes (important for development)
 app.use(express.json()); // Enable parsing of JSON request bodies
@@ -120,15 +115,6 @@ app.post('/api/tasks', (req, res) => {
             filteredValues.push(values[i]);
         }
     }
-
-    // Add other fields if they are provided in the request body
-    if (description !== undefined) { columns.push('description'); placeholders.push('?'); values.push(description); }
-    if (dueDate !== undefined) { columns.push('dueDate'); placeholders.push('?'); values.push(dueDate); }
-    if (priority !== undefined) { columns.push('priority'); placeholders.push('?'); values.push(priority); }
-    if (status !== undefined) { columns.push('status'); placeholders.push('?'); values.push(status); }
-    if (parentTaskId !== undefined) { columns.push('parentTaskId'); placeholders.push('?'); values.push(parentTaskId); }
-    if (category !== undefined) { columns.push('category'); placeholders.push('?'); values.push(category); }
-    if (progress !== undefined) { columns.push('progress'); placeholders.push('?'); values.push(progress); }
 	
     db.run(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues, function(err) {
         if (err) {
@@ -247,7 +233,7 @@ app.delete('/api/tasks/:id', (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Access at: http://localhost:${PORT}/api/tasks`);
 });
