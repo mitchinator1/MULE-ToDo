@@ -1,7 +1,4 @@
 #!/usr/bin/with-contenv bashio
-# Use the same shebang as run.sh
-# This script will be run by s6-overlay when your service starts.
-
 set -e
 
 bashio::log.info "s6-overlay service 'my_todo_app' is starting Node.js backend..."
@@ -9,12 +6,11 @@ bashio::log.info "s6-overlay service 'my_todo_app' is starting Node.js backend..
 export PORT=$(bashio::config 'port_internal' || echo 3000)
 export DATABASE_PATH="/data/todo.db"
 
-# Ensure the database directory exists (if not created by Dockerfile)
 mkdir -p "$(dirname "${DATABASE_PATH}")"
 
 bashio::log.info "Database path: ${DATABASE_PATH}"
 bashio::log.info "Server will listen on port: ${PORT}"
 
-# Execute the Node.js application.
-# Crucially, 'exec' here ensures Node.js becomes the PID 1 of this service.
-exec node /app/backend/server.js
+# !!! CRUCIAL CHANGE: Use the absolute path to node here !!!
+# Replace /usr/bin/node with the actual path you found (if different)
+exec /usr/bin/node /app/backend/server.js
