@@ -1,10 +1,14 @@
 #!/usr/bin/with-contenv bashio
 set -e
+
 bashio::log.info "s6-overlay service 'my_todo_app' is starting Node.js backend..."
+
 export PORT=$(bashio::config 'port_internal' || echo 3000)
 export DATABASE_PATH="/data/todo.db"
+
 mkdir -p "$(dirname "${DATABASE_PATH}")"
 bashio::log.info "Database path: ${DATABASE_PATH}"
 bashio::log.info "Server will listen on port: ${PORT}"
-# This is the line to focus on.
-exec node /app/backend/server.js
+
+# No `exec`, just start the process (s6-overlay will supervise it)
+node /app/backend/server.js
