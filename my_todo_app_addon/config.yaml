@@ -1,7 +1,7 @@
-name: "Node.js To-Do API"
+name: "My To-Do App"
 version: "1.0.0"
-slug: "node_todo_api"
-description: "A simple Node.js + SQLite to-do list API"
+slug: "my_todo_app"
+description: "Node.js + SQLite to-do app with frontend"
 arch:
   - amd64
   - aarch64
