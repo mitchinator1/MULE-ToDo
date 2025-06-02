@@ -182,14 +182,13 @@ function publishUpcomingTasksState() {
                     upcomingTasks.push({
                         id: task.id,
                         title: task.title,
-                        description: task.description, // Added
+                        description: task.description,
                         dueDate: task.dueDate,
-                        priority: task.priority,     // Added
-                        status: task.status,         // Added
-                        category: task.category,     // Added
-                        progress: task.progress      // Added
-                        // We are not including 'completed', 'created_at', 'parentTaskId', 'recurring'
-                        // You can add more fields from your DB if you need them in HA
+                        priority: task.priority,
+                        status: task.status,
+                        category: task.category,
+                        progress: task.progress
+                        // We are not including the following yet: 'completed', 'created_at', 'parentTaskId', 'recurring'
                     });
                 }
             } catch (dateError) {
@@ -197,18 +196,26 @@ function publishUpcomingTasksState() {
             }
         });
 
+	upcomingTasks.sort((a, b) => {
+	    const dateA = new Date(a.dueDate);
+	    const dateB = new Date(b.dueDate);
+	    if (dateA - dateB !== 0) {
+	        return dateA - dateB;
+	    }
+	    return a.id - b.id;
+	});
+
         const count = upcomingTasks.length;
+	const nextDueId = count > 0 ? upcomingTasks[0].id : null;
         mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, String(count), { retain: false });
         console.log(`Published upcoming tasks count: ${count}`);
 
         // --- Publish the detailed attributes as JSON ---
-        // Home Assistant will take this JSON array and make it an attribute.
-        // It will usually be named 'list' or similar by default, or you can access the raw JSON.
         mqttClient.publish(
 	  UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
 	  JSON.stringify({
 	    count: upcomingTasks.length,
-	    next_due: upcomingTasks[0]?.id || null,
+	    next_due_id: nextDueId,
 	    tasks: upcomingTasks
 	  }),
 	  { retain: false }
