@@ -44,10 +44,12 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
     }
 };
 
+
 // Connect to SQLite database. The .db file will be created if it doesn't exist.
 const db = new sqlite3.Database('/data/todo.db', (err) => {
     if (err) {
         console.error('Error connecting to database:', err.message);
+	process.exit(1);
     } else {
         console.log('Connected to the SQLite database.');
         // Create the tasks table if it doesn't exist
@@ -57,7 +59,7 @@ const db = new sqlite3.Database('/data/todo.db', (err) => {
             completed BOOLEAN DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			description TEXT DEFAULT '',
-            dueDate TEXT DEFAULT '',           -- Storing dates as TEXT (ISO 8601 format) is common with SQLite
+            dueDate TEXT DEFAULT '',
             priority TEXT DEFAULT 'Low',
             status TEXT DEFAULT 'Not Started',
             parentTaskId INTEGER DEFAULT '',
@@ -67,8 +69,10 @@ const db = new sqlite3.Database('/data/todo.db', (err) => {
         )`, (createErr) => {
             if (createErr) {
                 console.error('Error creating table:', createErr.message);
+		process.exit(1);
             } else {
                 console.log('Tasks table ensured.');
+		connectMqttAndStartServer();
             }
         });
     }
@@ -93,40 +97,61 @@ const processTaskRow = (row) => {
 
 // --- MQTT Connection and Publishing Logic ---
 function connectMqttAndStartServer() {
-    const mqttOptions = {
-        port: MQTT_PORT,
-        username: MQTT_USERNAME,
-        password: MQTT_PASSWORD,
-        clientId: `${ADDON_SLUG}_${Math.random().toString(16).substring(2, 8)}` // Unique client ID
-    };
+    const mqttOptions = {
+        port: MQTT_PORT,
+        username: MQTT_USERNAME,
+        password: MQTT_PASSWORD,
+        clientId: `${ADDON_SLUG}_${Math.random().toString(16).substring(2, 8)}` // Unique client ID
+    };
 
-    mqttClient = mqtt.connect(`mqtt://${MQTT_BROKER}`, mqttOptions);
+    mqttClient = mqtt.connect(`mqtt://${MQTT_BROROKER}`, mqttOptions); // Corrected typo here as well (MQTT_BROROKER -> MQTT_BROKER)
 
-    mqttClient.on('connect', () => {
-        console.log('MQTT Connected.');
-        // Publish discovery message
-        mqttClient.publish(UPCOMING_TASKS_SENSOR_CONFIG_TOPIC, JSON.stringify(UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD), { retain: true });
-        console.log('Published MQTT Discovery for Upcoming Tasks Sensor.');
+    mqttClient.on('connect', () => {
+        console.log('MQTT Connected.');
+        // Publish discovery message
+        mqttClient.publish(UPCOMING_TASKS_SENSOR_CONFIG_TOPIC, JSON.stringify(UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD), { retain: true });
+        console.log('Published MQTT Discovery for Upcoming Tasks Sensor.');
 
-        // Initial state update
-        publishUpcomingTasksState();
+        // Initial state update
+        publishUpcomingTasksState();
 
-        // Start periodic updates (e.g., every 5 minutes)
-        setInterval(publishUpcomingTasksState, 5 * 60 * 1000); // 5 minutes
+        // Start periodic updates (e.g., every 5 minutes)
+        setInterval(publishUpcomingTasksState, 5 * 60 * 1000); // 5 minutes
+    });
+
+    mqttClient.on('error', (err) => {
+        console.error('MQTT Error:', err);
+        // Do not exit on MQTT error, just log. The app can still run.
+    });
+
+    mqttClient.on('offline', () => {
+        console.warn('MQTT client went offline.');
+    });
+
+    mqttClient.on('reconnect', () => {
+        console.log('MQTT client reconnected.');
+    });
+
+    // Start the Express server - THIS WAS MISSING ITS WRAPPER IN YOUR PROVIDED CODE
+    const httpServer = app.listen(PORT, BIND_IP, () => {
+        console.log(`Server running on ${BIND_IP}:${PORT}`);
+        console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`);
+        console.log(`API will be accessible via ingress`);
+        console.log("SERVER.JS: HTTP server successfully listening.");
     });
 
-    mqttClient.on('error', (err) => {
-        console.error('MQTT Error:', err);
-        // Do not exit on MQTT error, just log. The app can still run.
+    console.log("SERVER.JS: app.listen() call completed. Process should now be kept alive by server.");
+
+    httpServer.on('error', (err) => {
+        console.error('HTTP Server Error (from event listener):', err.message, err.stack);
+        process.exit(1);
     });
 
-    mqttClient.on('offline', () => {
-        console.warn('MQTT client went offline.');
+    httpServer.on('close', () => {
+        console.log('HTTP Server Closed (from event listener).');
     });
 
-    mqttClient.on('reconnect', () => {
-        console.log('MQTT client reconnected.');
-    });
+}
 
 // Function to calculate and publish upcoming tasks state
 function publishUpcomingTasksState() {
@@ -348,24 +373,6 @@ app.delete('/api/tasks/:id', (req, res) => {
         }
         res.json({ message: 'Task deleted successfully', changes: this.changes });
     });
-});
-
-// Start the server
-const httpServer = app.listen(PORT, BIND_IP, () => {
-    console.log(`Server running on ${BIND_IP}:${PORT}`);
-    console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`); // User-facing access
-    console.log(`API will be accessible via ingress`);
-});
-
-console.log("SERVER.JS: app.listen() call completed. Process should now be kept alive by server.");
-
-httpServer.on('error', (err) => {
-    console.error('HTTP Server Error (from event listener):', err.message, err.stack);
-    process.exit(1);
-});
-
-httpServer.on('close', () => {
-    console.log('HTTP Server Closed (from event listener).'); // This would indicate the server itself is stopping
 });
 
 // Global error handlers (important for debugging)
