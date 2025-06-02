@@ -1,5 +1,5 @@
 name: My To-Do App
-version: 0.1.7
+version: 0.1.8
 slug: my_todo_app
 description: A simple to-do list application for Home Assistant
 arch:
@@ -18,7 +18,7 @@ panel_title: My To-Do App
 options:
   port_internal: 3000
 schema:
-  port_internal: int
+  port_internal: "int?"
 environment:
   PORT: "[% port_internal %]" # Node.js will listen on this port (3000)
   DATABASE_PATH: "/data/todo.db" # This is a static path
