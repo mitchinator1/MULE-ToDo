@@ -104,6 +104,8 @@ function connectMqttAndStartServer() {
         clientId: `${ADDON_SLUG}_${Math.random().toString(16).substring(2, 8)}` // Unique client ID
     };
 
+    console.log(`MQTT Connection Attempt: Broker=${MQTT_BROKER}, Port=${MQTT_PORT}`);
+
     mqttClient = mqtt.connect(`mqtt://${MQTT_BROKER}`, mqttOptions);
 
     mqttClient.on('connect', () => {
