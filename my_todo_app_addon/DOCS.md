@@ -19,3 +19,6 @@ comparison to installing any other Home Assistant add-on.
 1. Check the logs of the "My Todo App" add-on to see if everything went well.
 1. Click on the "OPEN WEB UI" button to get into the interface of My Todo App.
 1. Enjoy the add-on!
+
+[addon-badge]: https://my.home-assistant.io/badges/supervisor_addon.svg
+[addon]: https://my.home-assistant.io/redirect/supervisor_addon/?addon=My-ToDo-App&repository_url=https%3A%2F%2Fgithub.com%2FMULE-ToDo
