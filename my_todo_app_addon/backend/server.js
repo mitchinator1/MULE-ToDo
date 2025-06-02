@@ -162,12 +162,12 @@ function publishUpcomingTasksState() {
         return;
     }
 
-    db.all('SELECT id, title, dueDate FROM tasks WHERE completed = 0 AND dueDate IS NOT NULL AND dueDate != ""', [], (err, rows) => {
+    db.all(`SELECT id, title, description, dueDate, priority, status, category, progress FROM tasks WHERE completed = 0 AND dueDate IS NOT NULL AND dueDate != ""`, [], (err, rows) => {
         if (err) {
             console.error('Error fetching tasks for MQTT state:', err.message);
-            // Even on error, publish 0 to avoid "Unknown" in HA.  This is safer.
             mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, "0", { retain: false });
             console.log(`Published upcoming tasks count: 0 (due to error)`);
+            mqttClient.publish(UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, "[]", { retain: false }); // Publish empty array on error
             return;
         }
 
@@ -177,15 +177,20 @@ function publishUpcomingTasksState() {
         rows.forEach(task => {
             try {
                 const taskDueDate = new Date(task.dueDate);
-                // Consider tasks due within the next 7 days as 'upcoming'
-                // Adjust this logic as per your definition of "upcoming"
                 const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
                 if (taskDueDate >= now && taskDueDate <= sevenDaysFromNow) {
                     upcomingTasks.push({
                         id: task.id,
                         title: task.title,
-                        dueDate: task.dueDate
+                        description: task.description, // Added
+                        dueDate: task.dueDate,
+                        priority: task.priority,     // Added
+                        status: task.status,         // Added
+                        category: task.category,     // Added
+                        progress: task.progress      // Added
+                        // We are not including 'completed', 'created_at', 'parentTaskId', 'recurring'
+                        // You can add more fields from your DB if you need them in HA
                     });
                 }
             } catch (dateError) {
@@ -197,7 +202,9 @@ function publishUpcomingTasksState() {
         mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, String(count), { retain: false });
         console.log(`Published upcoming tasks count: ${count}`);
 
-        // Also publish detailed attributes as JSON
+        // --- Publish the detailed attributes as JSON ---
+        // Home Assistant will take this JSON array and make it an attribute.
+        // It will usually be named 'list' or similar by default, or you can access the raw JSON.
         mqttClient.publish(UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, JSON.stringify(upcomingTasks), { retain: false });
         console.log(`Published upcoming tasks attributes: ${JSON.stringify(upcomingTasks)}`);
     });
