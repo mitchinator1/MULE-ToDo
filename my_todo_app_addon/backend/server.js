@@ -1,3 +1,5 @@
+console.log("SERVER.JS: STARTING EXECUTION");
+
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors'); // Import cors
@@ -10,7 +12,7 @@ app.use(cors()); // Enable CORS for all routes (important for development)
 app.use(express.json()); // Enable parsing of JSON request bodies
 
 // Connect to SQLite database. The .db file will be created if it doesn't exist.
-const db = new sqlite3.Database('./todo.db', (err) => {
+const db = new sqlite3.Database('/data/todo.db', (err) => {
     if (err) {
         console.error('Error connecting to database:', err.message);
     } else {
