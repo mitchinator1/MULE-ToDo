@@ -21,4 +21,4 @@ comparison to installing any other Home Assistant add-on.
 1. Enjoy the add-on!
 
 [addon-badge]: https://my.home-assistant.io/badges/supervisor_addon.svg
-[addon]: https://my.home-assistant.io/redirect/supervisor_addon/?addon=My-ToDo-App&repository_url=https%3A%2F%2Fgithub.com%2FMULE-ToDo
+[addon]: https://my.home-assistant.io/redirect/supervisor_addon/?addon=mitchinator1_MULE-ToDo&repository_url=https%3A%2F%2Fgithub.com%2Fmitchinator1%2FMULE-ToDo
