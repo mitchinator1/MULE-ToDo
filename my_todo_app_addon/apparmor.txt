@@ -1,0 +1,54 @@
+#include <tunables/global>
+
+profile my_todo_app flags=(attach_disconnected,mediate_deleted) { # <--- Replaced ADDON_SLUG
+  #include <abstractions/base>
+
+  # Capabilities
+  file,
+  signal (send) set=(kill,term,int,hup,cont),
+
+  # S6-Overlay
+  /init ix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/services.d/** rwix,
+  /etc/cont-init.d/** rwix,
+  /etc/cont-finish.d/** rwix,
+  /run/{,**} rwk,
+  /dev/tty rw,
+
+  # Bashio
+  /usr/lib/bashio/** ix,
+  /tmp/** rwk,
+
+  # Access to options.json and other files within your addon
+  /data/** rw, # This is crucial for your todo.db file
+
+  # Start new profile for service (Node.js)
+  # This needs to point to your Node.js executable
+  /usr/bin/node cx -> node, # <--- Changed from 'myprogram' to 'node'
+
+  profile node flags=(attach_disconnected,mediate_deleted) { # <--- Changed from 'myprogram' to 'node'
+    #include <abstractions/base>
+
+    # Receive signals from S6-Overlay
+    signal (receive) peer=*_my_todo_app, # <--- Replaced ADDON_SLUG
+
+    # Access to options.json and other files within your addon
+    /data/** rw, # Crucial for your database
+
+    # Access to mapped volumes specified in config.json
+    /share/** rw, # If you plan to use /share for anything, keep this. Otherwise, can be removed.
+
+    # Access required for service functionality
+    /usr/bin/node r, # <--- Node.js executable read access
+    /bin/bash rix,   # For shell scripts like run.sh
+    /bin/echo ix,    # For echo commands
+    /etc/passwd r,   # Standard system file access
+    /dev/tty rw,     # For terminal output
+    /usr/lib/node_modules/** r, # Allow Node.js to read its modules (e.g., express, sqlite3, cors)
+  }
+}
