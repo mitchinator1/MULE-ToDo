@@ -236,7 +236,7 @@ app.delete('/api/tasks/:id', (req, res) => {
 // Start the server
 app.listen(PORT, BIND_IP, () => {
     console.log(`Server running on ${BIND_IP}:${PORT}`);
-    console.log(`Access at: http://homeassistant.local/hassio/ingress/<addon_slug>`); // User-facing access
+    console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`); // User-facing access
     console.log(`API will be accessible via ingress`);
 });
 
