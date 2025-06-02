@@ -242,6 +242,20 @@ app.listen(PORT, BIND_IP, () => {
     console.log(`API will be accessible via ingress`);
 });
 
+// Add this to catch any unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    // Optionally, exit the process to ensure it's noticed
+    process.exit(1);
+});
+
+// Add this to catch any uncaught exceptions
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err.message, err.stack);
+    // Always exit after uncaught exceptions
+    process.exit(1);
+});
+
 // Close the database connection when the Node.js process exits
 process.on('SIGINT', () => {
     db.close((err) => {
