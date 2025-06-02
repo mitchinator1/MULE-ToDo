@@ -39,7 +39,7 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
         identifiers: [`${ADDON_SLUG}_device`],
         name: "My To-Do App",
         model: "To-Do Add-on",
-        manufacturer: "Your Name/Company",
+        manufacturer: "MULE",
         sw_version: process.env.ADDON_VERSION || "unknown" // Get version from HA supervisor environment if available
     }
 };
