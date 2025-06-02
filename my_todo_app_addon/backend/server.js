@@ -1,11 +1,10 @@
-console.log("SERVER.JS: STARTING EXECUTION");
-
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose(); // Use verbose for more detailed logging
+const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors'); // Import cors
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Use port 3000 by default
+const PORT = process.env.PORT || 3000;
+const BIND_IP = '172.30.32.2';
 
 app.use(cors()); // Enable CORS for all routes (important for development)
 app.use(express.json()); // Enable parsing of JSON request bodies
@@ -56,6 +55,8 @@ const processTaskRow = (row) => {
     }
     return row; // Return the modified row
 };
+
+app.use(express.static('/app/frontend'));
 
 // 1. GET all tasks
 app.get('/api/tasks', (req, res) => {
@@ -232,14 +233,11 @@ app.delete('/api/tasks/:id', (req, res) => {
     });
 });
 
-
-
-app.use(express.static('/app/frontend'));
-
 // Start the server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Access at: http://localhost:${PORT}/api/tasks`);
+app.listen(PORT, BIND_IP, () => {
+    console.log(`Server running on ${BIND_IP}:${PORT}`);
+    console.log(`Access at: http://homeassistant.local/hassio/ingress/<addon_slug>`); // User-facing access
+    console.log(`API will be accessible via ingress`);
 });
 
 // Close the database connection when the Node.js process exits
