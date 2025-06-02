@@ -236,24 +236,21 @@ app.delete('/api/tasks/:id', (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, BIND_IP, () => {
+const httpServer = app.listen(PORT, BIND_IP, () => {
     console.log(`Server running on ${BIND_IP}:${PORT}`);
     console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`); // User-facing access
     console.log(`API will be accessible via ingress`);
 });
 
-// Add this to catch any unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    // Optionally, exit the process to ensure it's noticed
+console.log("SERVER.JS: app.listen() call completed. Process should now be kept alive by server.");
+
+httpServer.on('error', (err) => {
+    console.error('HTTP Server Error (from event listener):', err.message, err.stack);
     process.exit(1);
 });
 
-// Add this to catch any uncaught exceptions
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err.message, err.stack);
-    // Always exit after uncaught exceptions
-    process.exit(1);
+httpServer.on('close', () => {
+    console.log('HTTP Server Closed (from event listener).'); // This would indicate the server itself is stopping
 });
 
 // Close the database connection when the Node.js process exits
