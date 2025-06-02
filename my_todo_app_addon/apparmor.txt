@@ -1,6 +1,6 @@
 #include <tunables/global>
 
-profile my_todo_app flags=(attach_disconnected,mediate_deleted) { # <--- Replaced ADDON_SLUG
+profile my_todo_app flags=(attach_disconnected,mediate_deleted,complain) {
   #include <abstractions/base>
 
   # Capabilities
@@ -29,9 +29,9 @@ profile my_todo_app flags=(attach_disconnected,mediate_deleted) { # <--- Replace
 
   # Start new profile for service (Node.js)
   # This needs to point to your Node.js executable
-  /usr/bin/node cx -> node, # <--- Changed from 'myprogram' to 'node'
+  /usr/bin/node cx -> node,
 
-  profile node flags=(attach_disconnected,mediate_deleted) { # <--- Changed from 'myprogram' to 'node'
+  profile node flags=(attach_disconnected,mediate_deleted,complain) {
     #include <abstractions/base>
 
     # Receive signals from S6-Overlay
