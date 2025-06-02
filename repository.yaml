@@ -1,4 +1,3 @@
-# MULE-ToDo/repository.yaml
 name: MULE To-Do Add-ons
-url: 'https://github.com/mitchinator1/MULE-ToDo' # This should be the URL of your repository
-maintainer: Mitchell Arnburg <mitchinator1@gmail.com> # Replace with your name and email
+url: 'https://github.com/mitchinator1/MULE-ToDo'
+maintainer: Mitchell Arnburg <mitchinator1@gmail.com>
