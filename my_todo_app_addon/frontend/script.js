@@ -815,11 +815,8 @@ const TaskManager = {
 	
 };
 							
-// !!! IMPORTANT: Set this to your local backend URL for testing !!!
-// When you deploy to your Raspberry Pi, you will update this to your Pi's IP address
-// e.g., 'http://192.168.1.100/api/tasks' if frontend is also on port 80
-// or 'http://192.168.1.100:3000/api/tasks' if your backend is exposed directly on port 3000
-const API_BASE_URL = 'http://homeassistant.local:8080/api/tasks'; // For local development
+const INGRESS_PATH_PREFIX = window.location.pathname.replace(/\/$/, '');
+const API_BASE_URL = `${INGRESS_PATH_PREFIX}/api`;
 
 const APIManager = {
     // Helper function to handle common fetch logic (error handling, JSON parsing)
@@ -850,15 +847,14 @@ const APIManager = {
 
     getTasks: async function () {
         console.log('Fetching tasks...');
-        return this._fetch(API_BASE_URL, {
+        return this._fetch(`${API_BASE_URL}/tasks`, {
             method: 'GET'
         });
     },
 
     addTask: async function (taskData) {
-        // taskData should be an object like { title: "New Task" }
         console.log('Adding task:', taskData);
-        return this._fetch(API_BASE_URL, {
+        return this._fetch(`${API_BASE_URL}/tasks`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -867,14 +863,9 @@ const APIManager = {
         });
     },
 
-    // Note: Your Node.js backend expects "completed: true" or "title: 'new title'"
-    // not "updates" object like Google Apps Script did.
-    // It's more flexible, allowing you to update just 'title' or just 'completed'
     updateTask: async function (taskId, updates) {
-        // 'updates' should be an object like { completed: true } or { title: "New Title" }
-		console.log(updates);
         console.log(`Updating task ${taskId} with:`, updates);
-        return this._fetch(`${API_BASE_URL}/${taskId}`, {
+        return this._fetch(`${API_BASE_URL}/tasks/${taskId}`, {
             method: 'PUT', // Or PATCH, but PUT is fine here for full replacement or partial update
             headers: {
                 'Content-Type': 'application/json'
@@ -885,7 +876,7 @@ const APIManager = {
 
     deleteTask: async function (taskId) {
         console.log('Deleting task:', taskId);
-        return this._fetch(`${API_BASE_URL}/${taskId}`, {
+        return this._fetch(`${API_BASE_URL}/tasks/${taskId}`, {
             method: 'DELETE'
         });
     }
