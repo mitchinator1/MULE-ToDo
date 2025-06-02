@@ -10,17 +10,22 @@ WORKDIR /app
 COPY backend /app/backend
 COPY frontend /app/frontend
 
-# Install backend dependencies
+# Install Node.js dependencies for the backend
 RUN npm install --prefix /app/backend
 
-# Copy service run script into place
-COPY root/ /
+# Ensure the data directory exists
+RUN mkdir -p /data
 
-# Ensure the run script is executable
-RUN chmod a+x /etc/services.d/my_todo_app/run
+# !!! IMPORTANT: Remove the root/ copy and chmod for services.d scripts !!!
+# COPY root/ /
+# RUN chmod a+x /etc/services.d/my_todo_app/run
+# RUN chmod a+x /etc/services.d/my_todo_app/finish
 
-# Expose the correct port
+# Copy the simplified run.sh to the root of the container and make it executable
+COPY run.sh /run.sh
+RUN chmod a+x /run.sh
+
 EXPOSE 3000
 
-# Let the base image's /init handle service startup via S6
-CMD ["/init"]
+# !!! CRUCIAL: Use the simplified run.sh as CMD, as per tutorial's working example !!!
+CMD ["/run.sh"]
