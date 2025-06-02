@@ -36,7 +36,7 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
     unit_of_measurement: "tasks",
     icon: "mdi:calendar-check",
     device: { // Optional: Create a device in HA for your add-on
-        identifiers: [`${ADDON_SLON}_device`],
+        identifiers: [`${ADDON_SLUG}_device`],
         name: "My To-Do App",
         model: "To-Do Add-on",
         manufacturer: "Your Name/Company",
@@ -127,24 +127,6 @@ function connectMqttAndStartServer() {
     mqttClient.on('reconnect', () => {
         console.log('MQTT client reconnected.');
     });
-
-    // Start the Express server
-    const httpServer = app.listen(PORT, BIND_IP, () => {
-        console.log(`Server running on ${BIND_IP}:${PORT}`);
-        console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`);
-        console.log(`API will be accessible via ingress`);
-        console.log("SERVER.JS: HTTP server successfully listening.");
-    });
-
-    httpServer.on('error', (err) => {
-        console.error('HTTP Server Error (from event listener):', err.message, err.stack);
-        process.exit(1);
-    });
-
-    httpServer.on('close', () => {
-        console.log('HTTP Server Closed (from event listener).');
-    });
-}
 
 // Function to calculate and publish upcoming tasks state
 function publishUpcomingTasksState() {
