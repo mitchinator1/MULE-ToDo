@@ -1,24 +1,21 @@
-#!/usr/bin/with-contenv bashio
+#!/command/with-contenv bash
+# DO NOT use /usr/bin/with-contenv — this causes suexec error
+
 set -e
 
-bashio::log.info "Starting Node.js server for My To-Do App..."
+# Logging
+echo "[INFO] Starting Node.js server for My To-Do App..."
 
-declare -i port_internal
-port_internal=$(bashio::config 'port_internal')
-
-export PORT="${port_internal}"
+# Read config
+PORT=$(bashio::config 'port_internal')
+export PORT="${PORT}"
 export DATABASE_PATH="/data/todo.db"
 
-mkdir -p "$(dirname "${DATABASE_PATH}")"
+echo "[INFO] Database path: $DATABASE_PATH"
+echo "[INFO] Server will listen on port: $PORT"
 
-bashio::log.info "Database path: ${DATABASE_PATH}"
-bashio::log.info "Server will listen on port: ${PORT}"
+# Ensure DB directory exists
+mkdir -p "$(dirname "$DATABASE_PATH")"
 
-NODE_BIN=$(which node)
-if [ -z "$NODE_BIN" ]; then
-    bashio::log.error "Node.js executable not found in PATH!"
-    exit 1
-fi
-
-# Stay in the foreground!
-exec "$NODE_BIN" /app/backend/server.js
+# Start the server as PID 1
+exec node /app/backend/server.js
