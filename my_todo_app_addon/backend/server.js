@@ -208,7 +208,7 @@ function publishUpcomingTasksState() {
 	  UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
 	  JSON.stringify({
 	    count: upcomingTasks.length,
-	    next_due: upcomingTasks[0]?.dueDate || null,
+	    next_due: upcomingTasks[0]?.id || null,
 	    tasks: upcomingTasks
 	  }),
 	  { retain: false }
