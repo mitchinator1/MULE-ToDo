@@ -2,7 +2,8 @@ console.log("SERVER.JS: STARTING EXECUTION");
 
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
-const cors = require('cors'); // Import cors
+const cors = require('cors');
+const mqtt = require('mqtt');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,6 +11,38 @@ const BIND_IP = '0.0.0.0';
 
 app.use(cors()); // Enable CORS for all routes (important for development)
 app.use(express.json()); // Enable parsing of JSON request bodies
+
+// MQTT Configuration
+const MQTT_BROKER = process.env.MQTT_BROKER;
+const MQTT_PORT = process.env.MQTT_PORT ? parseInt(process.env.MQTT_PORT) : 1883;
+const MQTT_USERNAME = process.env.MQTT_USERNAME;
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
+let mqttClient; // Declare mqttClient globally
+
+// Home Assistant MQTT Discovery topic prefix
+const HA_DISCOVERY_PREFIX = 'homeassistant';
+const ADDON_SLUG = 'my_todo_app'; // Match your add-on slug
+
+// Define the discovery payload for an "upcoming tasks" sensor
+const UPCOMING_TASKS_SENSOR_CONFIG_TOPIC = `${HA_DISCOVERY_PREFIX}/sensor/${ADDON_SLUG}/upcoming_tasks/config`;
+const UPCOMING_TASKS_SENSOR_STATE_TOPIC = `${ADDON_SLUG}/sensor/upcoming_tasks/state`;
+const UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC = `${ADDON_SLUG}/sensor/upcoming_tasks/attributes`; // Optional: for more detailed data
+
+const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
+    name: "Upcoming To-Do Tasks",
+    unique_id: `${ADDON_SLUG}_upcoming_tasks`,
+    state_topic: UPCOMING_TASKS_SENSOR_STATE_TOPIC,
+    json_attributes_topic: UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, // Use this for a list of tasks
+    unit_of_measurement: "tasks",
+    icon: "mdi:calendar-check",
+    device: { // Optional: Create a device in HA for your add-on
+        identifiers: [`${ADDON_SLON}_device`],
+        name: "My To-Do App",
+        model: "To-Do Add-on",
+        manufacturer: "Your Name/Company",
+        sw_version: process.env.ADDON_VERSION || "unknown" // Get version from HA supervisor environment if available
+    }
+};
 
 // Connect to SQLite database. The .db file will be created if it doesn't exist.
 const db = new sqlite3.Database('/data/todo.db', (err) => {
@@ -57,6 +90,106 @@ const processTaskRow = (row) => {
     }
     return row; // Return the modified row
 };
+
+// --- MQTT Connection and Publishing Logic ---
+function connectMqttAndStartServer() {
+    const mqttOptions = {
+        port: MQTT_PORT,
+        username: MQTT_USERNAME,
+        password: MQTT_PASSWORD,
+        clientId: `${ADDON_SLUG}_${Math.random().toString(16).substring(2, 8)}` // Unique client ID
+    };
+
+    mqttClient = mqtt.connect(`mqtt://${MQTT_BROKER}`, mqttOptions);
+
+    mqttClient.on('connect', () => {
+        console.log('MQTT Connected.');
+        // Publish discovery message
+        mqttClient.publish(UPCOMING_TASKS_SENSOR_CONFIG_TOPIC, JSON.stringify(UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD), { retain: true });
+        console.log('Published MQTT Discovery for Upcoming Tasks Sensor.');
+
+        // Initial state update
+        publishUpcomingTasksState();
+
+        // Start periodic updates (e.g., every 5 minutes)
+        setInterval(publishUpcomingTasksState, 5 * 60 * 1000); // 5 minutes
+    });
+
+    mqttClient.on('error', (err) => {
+        console.error('MQTT Error:', err);
+        // Do not exit on MQTT error, just log. The app can still run.
+    });
+
+    mqttClient.on('offline', () => {
+        console.warn('MQTT client went offline.');
+    });
+
+    mqttClient.on('reconnect', () => {
+        console.log('MQTT client reconnected.');
+    });
+
+    // Start the Express server
+    const httpServer = app.listen(PORT, BIND_IP, () => {
+        console.log(`Server running on ${BIND_IP}:${PORT}`);
+        console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`);
+        console.log(`API will be accessible via ingress`);
+        console.log("SERVER.JS: HTTP server successfully listening.");
+    });
+
+    httpServer.on('error', (err) => {
+        console.error('HTTP Server Error (from event listener):', err.message, err.stack);
+        process.exit(1);
+    });
+
+    httpServer.on('close', () => {
+        console.log('HTTP Server Closed (from event listener).');
+    });
+}
+
+// Function to calculate and publish upcoming tasks state
+function publishUpcomingTasksState() {
+    if (!db || !mqttClient || !mqttClient.connected) {
+        console.warn("Cannot publish MQTT state: DB not ready or MQTT not connected.");
+        return;
+    }
+
+    db.all('SELECT id, title, dueDate FROM tasks WHERE completed = 0 AND dueDate IS NOT NULL AND dueDate != ""', [], (err, rows) => {
+        if (err) {
+            console.error('Error fetching tasks for MQTT state:', err.message);
+            return;
+        }
+
+        const now = new Date();
+        const upcomingTasks = [];
+
+        rows.forEach(task => {
+            try {
+                const taskDueDate = new Date(task.dueDate);
+                // Consider tasks due within the next 7 days as 'upcoming'
+                // Adjust this logic as per your definition of "upcoming"
+                const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+                if (taskDueDate >= now && taskDueDate <= sevenDaysFromNow) {
+                    upcomingTasks.push({
+                        id: task.id,
+                        title: task.title,
+                        dueDate: task.dueDate
+                    });
+                }
+            } catch (dateError) {
+                console.error(`Error parsing dueDate for task ${task.id}: ${task.dueDate}, Error: ${dateError.message}`);
+            }
+        });
+
+        const count = upcomingTasks.length;
+        mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, String(count), { retain: false });
+        console.log(`Published upcoming tasks count: ${count}`);
+
+        // Also publish detailed attributes as JSON
+        mqttClient.publish(UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, JSON.stringify(upcomingTasks), { retain: false });
+        console.log(`Published upcoming tasks attributes: ${JSON.stringify(upcomingTasks)}`);
+    });
+}
 
 app.use(express.static('/app/frontend'));
 
@@ -253,6 +386,17 @@ httpServer.on('close', () => {
     console.log('HTTP Server Closed (from event listener).'); // This would indicate the server itself is stopping
 });
 
+// Global error handlers (important for debugging)
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err.message, err.stack);
+    process.exit(1);
+});
+
 // Close the database connection when the Node.js process exits
 process.on('SIGINT', () => {
     db.close((err) => {
@@ -261,6 +405,13 @@ process.on('SIGINT', () => {
         } else {
             console.log('Database connection closed.');
         }
-        process.exit(0);
+	if (mqttClient && mqttClient.connected) {
+	    mqttClient.end(() => {
+		console.log('MQTT client disconnected.');
+	    	process.exit(0);
+	    });
+        } else {
+        	process.exit(0);
+	}
     });
 });
