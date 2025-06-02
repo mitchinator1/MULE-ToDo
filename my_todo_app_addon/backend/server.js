@@ -94,6 +94,14 @@ const processTaskRow = (row) => {
     return row; // Return the modified row
 };
 
+function debounce(fn, delay) {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn(...args), delay);
+    };
+}
+
 // --- MQTT Connection and Publishing Logic ---
 function connectMqttAndStartServer() {
     const mqttOptions = {
@@ -223,6 +231,7 @@ function publishUpcomingTasksState() {
         console.log(`Published upcoming tasks attributes: ${JSON.stringify(upcomingTasks)}`);
     });
 }
+const debouncedPublishUpcomingTasksState = debounce(publishUpcomingTasksState, 5000);
 
 app.use(express.static('/app/frontend'));
 
@@ -261,21 +270,21 @@ app.post('/api/tasks', (req, res) => {
         return;
     }
 	
-	const columns = ['title', 'description', 'dueDate', 'priority', 'status', 'parentTaskId', 'category', 'progress'];
+    const columns = ['title', 'description', 'dueDate', 'priority', 'status', 'parentTaskId', 'category', 'progress'];
     const placeholders = Array(columns.length).fill('?');
     const values = [title, description, dueDate, priority, status, parentTaskId, category, progress];
 	
-	const filteredColumns = [];
+    const filteredColumns = [];
     const filteredPlaceholders = [];
     const filteredValues = [];
 	
-	if (recurring !== undefined && recurring !== null && typeof recurring === 'object') {
+    if (recurring !== undefined && recurring !== null && typeof recurring === 'object') {
         filteredColumns.push('recurring');
         filteredPlaceholders.push('?');
         filteredValues.push(JSON.stringify(recurring)); // Stringify the object
     }
 	
-	for (let i = 0; i < columns.length; i++) {
+    for (let i = 0; i < columns.length; i++) {
         // Only include if value is not undefined (i.e., it was explicitly sent in the request body)
         // Note: Empty strings are still valid data for the database
         if (values[i] !== undefined) {
@@ -287,7 +296,7 @@ app.post('/api/tasks', (req, res) => {
 	
     db.run(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues, function(err) {
         if (err) {
-			console.error('Error inserting task:', err.message);
+	    console.error('Error inserting task:', err.message);
             res.status(500).json({ error: err.message });
             return;
         }
@@ -298,6 +307,7 @@ app.post('/api/tasks', (req, res) => {
                 res.status(500).json({ error: err.message });
                 return;
             }
+	    debouncedPublishUpcomingTasksState();
             res.status(201).json(processTaskRow(row)); // Send the full new task object back
         });
     });
@@ -373,15 +383,16 @@ app.put('/api/tasks/:id', (req, res) => {
             res.status(404).json({ message: 'Task not found or no changes made' });
             return;
         }
-		const updatedTaskId = id;
-		db.get('SELECT * FROM tasks WHERE id = ?', [updatedTaskId], (err, row) => {
-			if (err) { 
-				res.status(500).json({ error: err.message });
-                return;			
-			}
-			if (!row) { /* ... not found for retrieval handling ... */ }
-			res.json({ message: 'Task updated successfully', task: processTaskRow(row) });
-		});
+	const updatedTaskId = id;
+	db.get('SELECT * FROM tasks WHERE id = ?', [updatedTaskId], (err, row) => {
+		if (err) { 
+			res.status(500).json({ error: err.message });
+                	return;			
+		}
+		if (!row) { /* ... not found for retrieval handling ... */ } // TODO
+		debouncedPublishUpcomingTasksState();
+		res.json({ message: 'Task updated successfully', task: processTaskRow(row) });
+	});
     });
 });
 
@@ -397,6 +408,7 @@ app.delete('/api/tasks/:id', (req, res) => {
             res.status(404).json({ message: 'Task not found' });
             return;
         }
+	debouncedPublishUpcomingTasksState();
         res.json({ message: 'Task deleted successfully', changes: this.changes });
     });
 });
