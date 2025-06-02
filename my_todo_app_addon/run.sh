@@ -23,7 +23,7 @@ bashio::log.info "Server will listen on port: ${PORT}"
 
 # Find Node.js executable (good practice)
 NODE_BIN=$(which node)
-if [ -z "$NODE_BIN" ]; thenAdd commentMore actions
+if [ -z "$NODE_BIN" ]; then
     bashio::log.error "Node.js executable not found in PATH!"
     exit 1
 fi
