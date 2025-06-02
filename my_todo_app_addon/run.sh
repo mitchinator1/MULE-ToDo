@@ -15,6 +15,8 @@ port_internal=$(bashio::config 'port_internal')
 mqtt_broker=$(bashio::config 'mqtt_broker')
 declare -i mqtt_port
 mqtt_port=$(bashio::config 'mqtt_port')
+mqtt_username=$(bashio::config 'mqtt_username')
+mqtt_password=$(bashio::config 'mqtt_password')
 
 # Export environment variables for the Node.js application.
 # Node.js will typically read these from process.env
@@ -24,6 +26,8 @@ export DATABASE_PATH="/data/todo.db" # This is a static path, no need for bashio
 # Explicitly export MQTT variables
 export MQTT_BROKER="${mqtt_broker}"
 export MQTT_PORT="${mqtt_port}"
+export MQTT_USERNAME="${mqtt_username}"
+export MQTT_PASSWORD="${mqtt_password}"
 
 mkdir -p "$(dirname "${DATABASE_PATH}")"
 
