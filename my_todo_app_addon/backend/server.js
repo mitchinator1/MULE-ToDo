@@ -44,7 +44,6 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
     }
 };
 
-
 // Connect to SQLite database. The .db file will be created if it doesn't exist.
 const db = new sqlite3.Database('/data/todo.db', (err) => {
     if (err) {
@@ -205,7 +204,15 @@ function publishUpcomingTasksState() {
         // --- Publish the detailed attributes as JSON ---
         // Home Assistant will take this JSON array and make it an attribute.
         // It will usually be named 'list' or similar by default, or you can access the raw JSON.
-        mqttClient.publish(UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, JSON.stringify(upcomingTasks), { retain: false });
+        mqttClient.publish(
+	  UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
+	  JSON.stringify({
+	    count: upcomingTasks.length,
+	    next_due: upcomingTasks[0]?.dueDate || null,
+	    tasks: upcomingTasks
+	  }),
+	  { retain: false }
+	);
         console.log(`Published upcoming tasks attributes: ${JSON.stringify(upcomingTasks)}`);
     });
 }
