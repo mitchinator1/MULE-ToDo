@@ -165,6 +165,9 @@ function publishUpcomingTasksState() {
     db.all('SELECT id, title, dueDate FROM tasks WHERE completed = 0 AND dueDate IS NOT NULL AND dueDate != ""', [], (err, rows) => {
         if (err) {
             console.error('Error fetching tasks for MQTT state:', err.message);
+            // Even on error, publish 0 to avoid "Unknown" in HA.  This is safer.
+            mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, "0", { retain: false });
+            console.log(`Published upcoming tasks count: 0 (due to error)`);
             return;
         }
 
