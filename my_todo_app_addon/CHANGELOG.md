@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## 0.9.2
+
+- Added MQTT broker support to see upcoming tasks inside Home Assistant
+
 ## 0.9.0
 
 - Preparing for version 1.0
