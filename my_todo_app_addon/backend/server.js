@@ -6,7 +6,7 @@ const cors = require('cors'); // Import cors
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const BIND_IP = '172.30.32.2';
+const BIND_IP = '0.0.0.0';
 
 app.use(cors()); // Enable CORS for all routes (important for development)
 app.use(express.json()); // Enable parsing of JSON request bodies
