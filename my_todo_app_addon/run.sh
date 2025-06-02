@@ -24,8 +24,6 @@ export DATABASE_PATH="/data/todo.db" # This is a static path, no need for bashio
 # Explicitly export MQTT variables
 export MQTT_BROKER="${mqtt_broker}"
 export MQTT_PORT="${mqtt_port}"
-export MQTT_USERNAME="${mqtt_username}"
-export MQTT_PASSWORD="${mqtt_password}"
 
 mkdir -p "$(dirname "${DATABASE_PATH}")"
 
