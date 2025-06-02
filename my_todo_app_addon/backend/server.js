@@ -387,13 +387,14 @@ process.on('SIGINT', () => {
         } else {
             console.log('Database connection closed.');
         }
-	if (mqttClient && mqttClient.connected) {
-	    mqttClient.end(() => {
-		console.log('MQTT client disconnected.');
-	    	process.exit(0);
-	    });
+        // Disconnect MQTT client before exiting
+        if (mqttClient && mqttClient.connected) {
+            mqttClient.end(() => {
+                console.log('MQTT client disconnected.');
+                process.exit(0);
+            });
         } else {
-        	process.exit(0);
-	}
+            process.exit(0);
+        }
     });
 });
