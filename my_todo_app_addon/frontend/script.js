@@ -573,7 +573,7 @@ const TaskManager = {
 			if (result.message === 'Task updated successfully' && result.task) {
 				DataManager.updateTask(result.task);
 				UIManager.updateTaskElement(taskId, result.task);
-				if (status === 'Completed' && result.task.recurring) {
+				if (status === 'Completed' && !Object.keys(result.task.recurring).length) {
 					await this.handleRecurringTask(result.task);
 				}
 				UIManager.showMessage('Status updated successfully', 'success');
