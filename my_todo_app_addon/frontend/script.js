@@ -594,50 +594,50 @@ const TaskManager = {
 	},
 	
 	calculateNextOccurrence(task) {
-		if (!task.recurring)
-			return null;
+		if (!task.recurring) return null;
+		
 		const lastDate = new Date(task.dueDate);
 		const pattern = task.recurring;
 		let nextDate = new Date(lastDate);
+		
 		switch (pattern.pattern) {
-		case 'daily':
-			nextDate.setDate(lastDate.getDate() + 1);
-			break;
-		case 'weekday':
-			do {
-				nextDate.setDate(nextDate.getDate() + 1);
-			} while (nextDate.getDay() === 0 || nextDate.getDay() === 6);
-			break;
-		case 'weekly':
-			nextDate.setDate(lastDate.getDate() + 7);
-			break;
-		case 'biweekly':
-			nextDate.setDate(lastDate.getDate() + 14);
-			break;
-		case 'monthly':
-			nextDate.setMonth(lastDate.getMonth() + 1);
-			break;
-		case 'yearly':
-			nextDate.setFullYear(lastDate.getFullYear() + 1);
-			break;
-		case 'custom':
-
-			const { value, unit } = pattern.interval;
-			switch (unit) {
-			case 'days':
-				nextDate.setDate(lastDate.getDate() + value);
+			case 'daily':
+				nextDate.setDate(lastDate.getDate() + 1);
 				break;
-			case 'weeks':
-				nextDate.setDate(lastDate.getDate() + (value * 7));
+			case 'weekday':
+				do {
+					nextDate.setDate(nextDate.getDate() + 1);
+				} while (nextDate.getDay() === 0 || nextDate.getDay() === 6);
 				break;
-			case 'months':
-				nextDate.setMonth(lastDate.getMonth() + value);
+			case 'weekly':
+				nextDate.setDate(lastDate.getDate() + 7);
 				break;
-			case 'years':
-				nextDate.setFullYear(lastDate.getFullYear() + value);
+			case 'biweekly':
+				nextDate.setDate(lastDate.getDate() + 14);
 				break;
-			}
-			break;
+			case 'monthly':
+				nextDate.setMonth(lastDate.getMonth() + 1);
+				break;
+			case 'yearly':
+				nextDate.setFullYear(lastDate.getFullYear() + 1);
+				break;
+			case 'custom':
+				const { value, unit } = pattern.interval;
+				switch (unit) {
+					case 'days':
+						nextDate.setDate(lastDate.getDate() + value);
+						break;
+					case 'weeks':
+						nextDate.setDate(lastDate.getDate() + (value * 7));
+						break;
+					case 'months':
+						nextDate.setMonth(lastDate.getMonth() + value);
+						break;
+					case 'years':
+						nextDate.setFullYear(lastDate.getFullYear() + value);
+						break;
+				}
+				break;
 		}
 		// Check if we've reached the end
 		if (pattern.end.type === 'on' && nextDate > new Date(pattern.end.value)) {
@@ -1149,85 +1149,70 @@ const UIManager = {
 			<div class="task-item" data-task-id="${task.id}">
 				<div class="task-expand-indicator ${task.hasSubtasks ? '' : 'hidden'}" onclick="UIManager.toggleSubtasks('${task.id}', event)"></div>
 				<div class="task-content">
-				<div class="task-header">
-				${recurringIndicator}
-				<div class="title-container">
+	
+					<div class="task-header">
+						${recurringIndicator}
+						<div class="title-container">
+							<span class="task-title" onclick="UIManager.editTaskTitle(event, '${task.id}')">${taskData.title}</span>
+							<input type="text" class="title-edit" value="${taskData.title}" style="display: none" onblur="TaskManager.updateTitle(event, '${task.id}')"	onkeydown="if(event.key==='Enter')this.blur(); if(event.key==='Escape')TaskManager.cancelTitleEdit(event, '${task.id}')">
+						</div>
+	  
+						<div class="task-details">
+							<div class="task-meta">
+								<span class="meta-item due-date-container">
+									<span class="meta-label">Due:</span>
+									<span class="meta-value due-date" onclick="UIManager.editTaskDueDate(event,	'${task.id}')" data-raw-date="${taskData.dueDate || ''}">
+										${taskData.dueDate ? taskData.dueDate.split('T')[0] : 'None'}
+									</span>
+									<div class="date-picker-dropdown" style="display: none;">
+										<div class="date-picker-header">
+											<span class="clear-date" onclick="UIManager.clearDueDate(event, '${task.id}')">Clear</span>
+											<span class="quick-dates">
+												<span onclick="UIManager.setQuickDate(event, '${task.id}', 'today')">Today</span>
+												<span onclick="UIManager.setQuickDate(event, '${task.id}', 'tomorrow')">Tomorrow</span>
+												<span onclick="UIManager.setQuickDate(event, '${task.id}', 'nextWeek')">Next Week</span>
+											</span>
+										</div>
+										<input type="date" class="date-input" value="${taskData.dueDate ? taskData.dueDate.split('T')[0] : ''}"	onchange="TaskManager.updateDueDate(event, '${task.id}')" onclick="event.stopPropagation()">
+									</div>
+								</span>
+								<span class="meta-item">
+									<span class="meta-label">Status:</span>
+									<span class="meta-value status">${taskData.status}</span>
+								</span>
+								<span class="meta-item">
+									<span class="meta-label">Complete:</span>
+									<span class="meta-value progress">${taskData.progress}%</span>
+								</span>
+							</div>
 
-				<span class="task-title" onclick="UIManager.editTaskTitle(event,
-				'${task.id}')">${taskData.title}</span>
-				<input type="text" class="title-edit" value="${taskData.title}" style="display: none"
-				onblur="TaskManager.updateTitle(event, '${task.id}')"
-				onkeydown="if(event.key==='Enter')this.blur(); if(event.key==='Escape')TaskManager.cancelTitleEdit(event, '${task.id}')">
-				</div>
-				<div class="task-details">
-				<div class="task-meta">
-				<span class="meta-item due-date-container">
-				<span class="meta-label">Due:</span>
-				<span class="meta-value due-date" onclick="UIManager.editTaskDueDate(event,	'${task.id}')" data-raw-date="${taskData.dueDate || ''}">
-					${taskData.dueDate ? taskData.dueDate.split('T')[0] : 'None'}
-				</span>
-				<div class="date-picker-dropdown" style="display: none;">
-				<div class="date-picker-header">
-					<span class="clear-date" onclick="UIManager.clearDueDate(event, '${task.id}')">Clear</span>
-					<span class="quick-dates">
-						<span onclick="UIManager.setQuickDate(event, '${task.id}', 'today')">Today</span>
-						<span onclick="UIManager.setQuickDate(event, '${task.id}', 'tomorrow')">Tomorrow</span>
-						<span onclick="UIManager.setQuickDate(event, '${task.id}', 'nextWeek')">Next Week</span>
-					</span>
-				</div>
-				<input type="date" class="date-input" value="${taskData.dueDate ? taskData.dueDate.split('T')[0] : ''}"
-				onchange="TaskManager.updateDueDate(event, '${task.id}')"
-				onclick="event.stopPropagation()">
-				</div>
-				</span>
-				<span class="meta-item">
-				<span class="meta-label">Status:</span>
-				<span class="meta-value status">${taskData.status}</span>
-				</span>
-				<span class="meta-item">
-				<span class="meta-label">Complete:</span>
-				<span class="meta-value progress">${taskData.progress}%</span>
-				</span>
-				</div>
-
-				<div class="progress-bar">
-				<div class="progress" style="width: ${taskData.progress}%"></div>
-				</div>
-				</div>
-				<div class="priority-container">
-				<div class="priority priority-${taskData.priority}"	onclick="UIManager.togglePriorityDropdown(event, '${task.id}')">
-
-				${taskData.priority}
-				</div>
-				<div class="priority-dropdown" style="display: none;">
-				<div class="priority-option priority-Low" onclick="TaskManager.updatePriority(event, '${task.id}', 'Low')">Low</div>
-
-				<div class="priority-option priority-Medium"
-
-				onclick="TaskManager.updatePriority(event, '${task.id}', 'Medium')">Medium</div>
-
-				<div class="priority-option priority-High" onclick="TaskManager.updatePriority(event,
-
-				'${task.id}', 'High')">High</div>
-				</div>
-				</div>
-				</div>
+							<div class="progress-bar">
+								<div class="progress" style="width: ${taskData.progress}%"></div>
+							</div>
+						</div>
+						<div class="priority-container">
+							<div class="priority priority-${taskData.priority}"	onclick="UIManager.togglePriorityDropdown(event, '${task.id}')">
+								${taskData.priority}
+							</div>
+							<div class="priority-dropdown" style="display: none;">
+								<div class="priority-option priority-Low" onclick="TaskManager.updatePriority(event, '${task.id}', 'Low')">Low</div>
+								<div class="priority-option priority-Medium" onclick="TaskManager.updatePriority(event, '${task.id}', 'Medium')">Medium</div>
+								<div class="priority-option priority-High" onclick="TaskManager.updatePriority(event, '${task.id}', 'High')">High</div>
+							</div>
+						</div>
+					</div>
 				<div class="description-container">
-				<div class="description" onclick="UIManager.editTaskDescription(event, '${task.id}')">
-				${taskData.description || '<span class="placeholder">Add description...</span>'}
-				</div>
-				<textarea class="description-edit" style="display: none"
-				onblur="TaskManager.updateDescription(event, '${task.id}')"
-				onkeydown="if(event.key==='Escape')TaskManager.cancelDescriptionEdit(event, '${task.id}')">${taskData.description}</textarea>
-				</div>
-				</div>
-				<div class="task-actions">
-				<button class="btn btn-info btn-sm"
-				onclick="UIManager.showTaskForm('${task.id}')">Add</button>
-				<button class="btn btn-success btn-sm" onclick="TaskManager.updateTaskStatus(event,
-				'${task.id}', 'Completed')">Done</button>
+					<div class="description" onclick="UIManager.editTaskDescription(event, '${task.id}')">
+						${taskData.description || '<span class="placeholder">Add description...</span>'}
+					</div>
+					<textarea class="description-edit" style="display: none" onblur="TaskManager.updateDescription(event, '${task.id}')" onkeydown="if(event.key==='Escape')TaskManager.cancelDescriptionEdit(event, '${task.id}')">${taskData.description}</textarea>
 				</div>
 			</div>
+			<div class="task-actions">
+				<button class="btn btn-info btn-sm"	onclick="UIManager.showTaskForm('${task.id}')">Add</button>
+				<button class="btn btn-success btn-sm" onclick="TaskManager.updateTaskStatus(event,	'${task.id}', 'Completed')">Done</button>
+			</div>
+		</div>
 			`;
 		return html;
 	},
@@ -1544,9 +1529,9 @@ const UIManager = {
 	},
 	
 	getRecurringDescription: function (recurring) {
-		if (!recurring)
-			return '';
+		if (!recurring)	return '';
 		let recurringData = recurring;
+		
 		if (typeof recurring === 'string') {
 			try {
 				recurringData = JSON.parse(recurring);
@@ -1554,8 +1539,8 @@ const UIManager = {
 				console.error('Error parsing recurring data:', e);
 				return 'Recurring task';
 			}
-
 		}
+		
 		let description = 'Repeats ';
 		switch (recurringData.pattern) {
 		case 'daily':
@@ -1586,6 +1571,7 @@ const UIManager = {
 		default:
 			description += 'with unknown pattern';
 		}
+		
 		if (recurringData.end) {
 			if (recurringData.end.type === 'after') {
 				description += `, ${recurringData.end.value} times`;
@@ -1593,6 +1579,7 @@ const UIManager = {
 				description += `, until ${recurringData.end.value}`;
 			}
 		}
+		
 		return description;
 	},
 	
