@@ -573,7 +573,7 @@ const TaskManager = {
 			if (result.message === 'Task updated successfully' && result.task) {
 				DataManager.updateTask(result.task);
 				UIManager.updateTaskElement(taskId, result.task);
-				if (status === 'Completed' && !Object.keys(result.task.recurring).length) {
+				if (status === 'Completed' && JSON.stringify(task.recurring) !== "{}") {
 					await this.handleRecurringTask(result.task);
 				}
 				UIManager.showMessage('Status updated successfully', 'success');
@@ -594,7 +594,7 @@ const TaskManager = {
 	},
 	
 	calculateNextOccurrence(task) {
-		if (!task.recurring || Object.keys(task.recurring) === 0) return null;
+		if (!task.recurring || JSON.stringify(task.recurring) === "{}") return null;
 		
 		const lastDate = new Date(task.dueDate);
 		const pattern = task.recurring;
