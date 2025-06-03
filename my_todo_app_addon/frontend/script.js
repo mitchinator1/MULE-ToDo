@@ -1804,11 +1804,11 @@ const DataManager = {
 	},
 	
 	saveState: function () {
-		localStorage.setItem('taskManagerState', JSON.stringify(this.state));
+		//localStorage.setItem('taskManagerState', JSON.stringify(this.state));
 	},
 	
 	loadState: function () {
-		const savedState = localStorage.getItem('taskManagerState');
+		const savedState = null; //localStorage.getItem('taskManagerState');
 
 		if (savedState) {
 			try {
