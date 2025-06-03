@@ -594,7 +594,7 @@ const TaskManager = {
 	},
 	
 	calculateNextOccurrence(task) {
-		if (!task.recurring) return null;
+		if (!task.recurring || Object.keys(task.recurring) === 0) return null;
 		
 		const lastDate = new Date(task.dueDate);
 		const pattern = task.recurring;
@@ -714,7 +714,7 @@ const TaskManager = {
 		const descriptionDiv = container.querySelector('.description');
 		// Check if there are changes
 		if (newDescription !== descriptionDiv.textContent.trim()) {
-			descriptionDiv.innerHTML = newDescription || '<span class="placeholder">Add	description...</span>'; // Update UI immediately
+			descriptionDiv.innerHTML = newDescription || '<span class="placeholder">Add description...</span>'; // Update UI immediately
 			this.updateTaskField(taskId, 'description', newDescription);
 		}
 		UIManager.finishDescriptionEdit(container);
