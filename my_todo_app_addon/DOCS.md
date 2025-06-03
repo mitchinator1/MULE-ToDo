@@ -15,6 +15,10 @@ comparison to installing any other Home Assistant add-on.
    [![Open this add-on in your Home Assistant instance.][addon-badge]][addon]
 
 1. Click the "Install" button to install the add-on.
+1. Navigate in your Home Assistant frontend to Settings -> Add-ons -> Add-on store.
+1. Find the "Mosquitto broker" add-on and click it.
+1. Click on the "INSTALL" button.
+1. Configure the MQTT username and password.
 1. Start the "My Todo App" add-on.
 1. Check the logs of the "My Todo App" add-on to see if everything went well.
 1. Click on the "OPEN WEB UI" button to get into the interface of My Todo App.
