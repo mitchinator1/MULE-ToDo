@@ -1143,7 +1143,7 @@ const UIManager = {
 		};
 		const recurringDescription = Object.keys(taskData.recurring).length ?
 			this.getRecurringDescription(taskData.recurring) : '';
-		const recurringIndicator = Object.keys(taskData.recurring).length ?
+		const recurringIndicator = JSON.stringify(task.recurring) !== "{}" ?
 			`<span class="recurring-indicator" data-recurring='${JSON.stringify(taskData.recurring)}'title="${recurringDescription}" onclick="UIManager.showRecurringEditForm('${task.id}', event)">🔁</span>` : '';
 		const html = `
 			<div class="task-item" data-task-id="${task.id}">
@@ -1324,7 +1324,7 @@ const UIManager = {
 		}
 		// Update recurring indicator
 		const recurringIndicator = taskElement.querySelector('.recurring-indicator');
-		if (updatedTask.recurring) {
+		if (JSON.stringify(updatedTask.recurring) !== "{}") {
 			if (!recurringIndicator) {
 				// Create recurring indicator if it doesn't exist
 				const newRecurringIndicator = document.createElement('span');
@@ -1339,13 +1339,10 @@ const UIManager = {
 			}
 			// Update recurring data and description
 			const recurringData = typeof updatedTask.recurring === 'string' ?
-
 				updatedTask.recurring :
 				JSON.stringify(updatedTask.recurring);
-			(recurringIndicator ||
-				taskElement.querySelector('.recurring-indicator')).setAttribute('data-recurring', recurringData);
-			(recurringIndicator || taskElement.querySelector('.recurring-indicator')).setAttribute('title',
-				this.getRecurringDescription(updatedTask.recurring));
+			(recurringIndicator || taskElement.querySelector('.recurring-indicator')).setAttribute('data-recurring', recurringData);
+			(recurringIndicator || taskElement.querySelector('.recurring-indicator')).setAttribute('title',	this.getRecurringDescription(updatedTask.recurring));
 		} else if (recurringIndicator) {
 			// Remove recurring indicator if task is no longer recurring
 			recurringIndicator.remove();
