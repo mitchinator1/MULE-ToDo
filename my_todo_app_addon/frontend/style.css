@@ -451,12 +451,9 @@ body {
 
 /* Form Styles */
 .form-row {
-	display: flex;
-	gap: 20px;
-}
-
-.form-row .form-group {
-	flex: 1;
+	display: grid;
+	grid-template-columns: (auto-fit, minmax(120px, 1fr));
+	gap: 16px;
 }
 
 .form-group label {
