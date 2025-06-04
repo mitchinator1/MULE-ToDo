@@ -1999,38 +1999,6 @@ const FilterManager = {
 	
 };
 
-// Utility functions
-function normalizeDate(dateString) {
-	if (!dateString)
-		return '';
-	try {
-		const date = new Date(dateString);
-		return isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
-	} catch (e) {
-		console.error('Error normalizing date:', e);
-		return '';
-	}
-}
-
-function formatDate(dateString) {
-    if (!dateString)
-        return 'No due date';
-    try {
-        // Check if the date string includes time information
-        if (dateString.includes('T')) {
-            // Extract just the date part from ISO string
-            dateString = dateString.split('T')[0];
-        }
-        // Now we have YYYY-MM-DD format
-
-        const [year, month, day] = dateString.split('-').map(Number);
-        return `${month.toString().padStart(2, '0')}/${day.toString().padStart(2, '0')}/${year}`;
-    } catch (e) {
-        console.error('Error formatting date:', e);
-        return 'No due date';
-    }
-}
-
 // Initialize the TaskManager
 document.addEventListener('DOMContentLoaded', () => {
     TaskManager.init().catch(error => {
