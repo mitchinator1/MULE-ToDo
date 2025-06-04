@@ -4,223 +4,222 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>To-Do List</title>
-
     <link rel="stylesheet" href="style.css">
 </head>
-	<body>
-		<div id="sidebar" class="sidebar collapsed">
-			<div class="sidebar-header">
-				<h3>Categories</h3>
-				<button id="toggleSidebar" class="toggle-sidebar"></button>
-			</div>
-			<div id="categoryList" class="category-list">
-				<!-- Categories will be dynamically added here -->
-			</div>
-		</div>
-		<div id="mainContent" class="main-content">
-			<div id="filterContainer" class="filter-container collapsed">
-				<button id="toggleFilters" class="toggle-filters" onclick="UIManager.toggleFilters()">Filters ▼</button>
-				<div class="filter-controls">
-					<select id="statusFilter" class="filter-select">
-						<option value="active">Active</option>
-						<option value="completed">Completed</option>
-						<option value="all">All Status</option>
-					</select>
-					<select id="priorityFilter" class="filter-select">
-						<option value="all">All Priorities</option>
-						<option value="High">High</option>
-						<option value="Medium">Medium</option>
-						<option value="Low">Low</option>
-					</select>
-					<select id="dueDateFilter" class="filter-select">
-						<option value="all">All Dates</option>
-						<option value="today">Due Today</option>
-						<option value="week">Due This Week</option>
-						<option value="overdue">Overdue</option>
-					</select>
-					<select id="sortBy" class="filter-select">
-						<option value="dueDate-asc">Due Date ▲</option>
-						<option value="dueDate-desc">Due Date ▼</option>
-						<option value="priority-desc">Priority ▼</option>
-						<option value="priority-asc">Priority ▲</option>
-						<option value="name-asc">Name A-Z</option>
-						<option value="name-desc">Name Z-A</option>
-					</select>
-				</div>
-			</div>
-			<div class="task-list" id="taskList"></div>
-		</div>
-		<button id="addTaskButton" class="add-task-button">+</button>
-		<!-- Task Modal (Add/Edit) -->
-		<div id="taskForm" class="modal">
-			<div class="modal-content">
-				<span class="close-modal" onclick="UIManager.hideTaskForm()">&times;</span>
-				<h3>New Task</h3>
-				<form id="taskFormElement">
-					<input type="hidden" id="taskId" name="taskId">
-					<input type="hidden" id="parentTaskId" name="parentTaskId">
-					<div class="inline-input-container">
-						<input type="text" id="taskName" name="taskName" class="inline-input title-style" placeholder="Task Name" required>
-					</div>
-					<div class="inline-input-container">
-						<textarea id="description" name="description" class="inline-input description-style" placeholder="Add description..." rows="1"></textarea>
-					</div>
-					<div class="form-row">
-						<div class="form-group due-date-container">
-							<label for="dueDate">Due Date</label>
-							<div class="due-date" onclick="UIManager.editTaskDueDate(event, 'modal')">
-								<span id="modalDueDateDisplay">None</span>
-							</div>
-							<div class="date-picker-dropdown" style="display: none;">
-								<div class="date-picker-header">
-									<span class="clear-date" onclick="UIManager.clearDueDate(event, 'modal')">Clear</span>
-									<span class="quick-dates">
-									<span onclick="UIManager.setQuickDate(event, 'modal', 'today')">Today</span>
-									<span onclick="UIManager.setQuickDate(event, 'modal', 'tomorrow')">Tomorrow</span>
-									<span onclick="UIManager.setQuickDate(event, 'modal', 'nextWeek')">Next Week</span>
-									</span>
-								</div>
-								<input type="date" id="dueDate" name="dueDate" class="date-input" onchange="TaskManager.updateDueDate(event, 'modal')" onclick="event.stopPropagation()">
-							</div>
-						</div>
-						<div class="form-group priority-container">
-							<label for="priority">Priority</label>
-							<div class="priority priority-Medium" onclick="UIManager.togglePriorityDropdown(event, 'modal')">
-								<span id="modalPriorityDisplay">Medium</span>
-							</div>
-							<div class="priority-dropdown">
-								<div class="priority-option priority-Low" onclick="TaskManager.updatePriority(event, 'modal', 'Low')">Low</div>
-								<div class="priority-option priority-Medium" onclick="TaskManager.updatePriority(event, 'modal', 'Medium')">Medium</div>
-								<div class="priority-option priority-High" onclick="TaskManager.updatePriority(event, 'modal', 'High')">High</div>
-							</div>
-							<input type="hidden" id="priorityHidden" name="priority" value="Medium">
-						</div>
-					</div>
-					<div class="form-group recurring-controls">
-						<div class="form-row">
-							<div class="form-group repeat-group">
-								<label for="recurringPattern">Repeat</label>
-								<select id="recurringPattern" class="form-control">
-									<option value="none">Does not repeat</option>
-									<option value="daily">Daily</option>
-									<option value="weekday">Every weekday</option>
-									<option value="weekly">Weekly</option>
-									<option value="biweekly">Every 2 weeks</option>
-									<option value="monthly">Monthly</option>
-									<option value="yearly">Yearly</option>
-									<option value="custom">Custom...</option>
-								</select>
-							</div>
-						</div>
-						<div class="recurring-options" style="display: none;">
-							<div class="form-row">
-								<div class="form-group end-group">
-									<label>Ends</label>
-									<div class="recurring-end-options">
-										<div class="radio-option">
-											<input type="radio" id="endNever" name="recurringEnd" value="never" checked>
-											<label for="endNever">Never</label>
-										</div>
-										<div class="radio-option">
-											<input type="radio" id="endAfter" name="recurringEnd" value="after">
-											<label for="endAfter">After</label>
-											<div class="input-wrapper">
-												<input type="number" id="occurenceCount" min="1" max="99" value="1" disabled>
-												<span>occurrences</span>
-											</div>
-										</div>
-										<div class="radio-option">
-											<input type="radio" id="endOn" name="recurringEnd" value="on">
-											<label for="endOn">On</label>
-											<div class="input-wrapper">
-												<input type="date" id="endDate" disabled>
-											</div>
-										</div>
-									</div>
-								</div>
-								<div class="form-group custom-repeat" style="display: none;">
-									<label for="customInterval">Repeat every</label>
-									<div class="custom-repeat-input">
-										<input type="number" id="customInterval" min="1" max="99" value="1">
-										<select id="customUnit">
-											<option value="days">Days</option>
-											<option value="weeks">Weeks</option>
-											<option value="months">Months</option>
-											<option value="years">Years</option>
-										</select>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-					<button type="submit" id="taskFormSubmit" class="btn btn-primary">Add Task</button>
-				</form>
-			</div>
-		</div>
-		<!-- Recurring Pattern Modal -->
-		<div id="recurringEditModal" class="modal">
-			<div class="modal-content">
-				<span class="close-modal" onclick="UIManager.hideRecurringEditForm()">&times;</span>
-				<h3>Edit Recurring Pattern</h3>
-				<form id="recurringEditForm">
-					<input type="hidden" id="editRecurringTaskId">
-					<div class="form-group">
-						<label for="editRecurringPattern">Repeat</label>
-						<select id="editRecurringPattern" class="form-control">
-							<option value="none">Does not repeat</option>
-							<option value="daily">Daily</option>
-							<option value="weekday">Every weekday</option>
-							<option value="weekly">Weekly</option>
-							<option value="biweekly">Every 2 weeks</option>
-							<option value="monthly">Monthly</option>
-							<option value="yearly">Yearly</option>
-							<option value="custom">Custom...</option>
-						</select>
-					</div>
-					<div class="recurring-options">
-						<div class="form-row">
-							<div class="form-group end-group">
-								<label>Ends</label>
-								<div class="recurring-end-options">
-									<div class="radio-option">
-										<input type="radio" id="editEndNever" name="editRecurringEnd" value="never" checked>
-										<label for="editEndNever">Never</label>
-									</div>
-									<div class="radio-option">
-										<input type="radio" id="editEndAfter" name="editRecurringEnd" value="after">
-										<label for="editEndAfter">After</label>
-										<div class="input-wrapper">
-											<input type="number" id="editOccurenceCount" min="1" max="99" value="1" disabled>
-											<span>occurrences</span>
-										</div>
-									</div>
-									<div class="radio-option">
-										<input type="radio" id="editEndOn" name="editRecurringEnd" value="on">
-										<label for="editEndOn">On</label>
-										<div class="input-wrapper">
-											<input type="date" id="editEndDate" disabled>
-										</div>
-									</div>
-								</div>
-							</div>
-							<div class="form-group custom-repeat" style="display: none;">
-								<label for="editCustomInterval">Repeat every</label>
-								<div class="custom-repeat-input">
-									<input type="number" id="editCustomInterval" min="1" max="99" value="1">
-									<select id="editCustomUnit">
-										<option value="days">Days</option>
-										<option value="weeks">Weeks</option>
-										<option value="months">Months</option>
-										<option value="years">Years</option>
-									</select>
-								</div>
-							</div>
-						</div>
-					</div>
-					<button type="submit" class="btn btn-primary" id="recurringFormSubmit">Update Recurring Pattern</button>
-				</form>
-			</div>
-		</div>
-		<script src="script.js"></script>
-	</body>
+<body>
+    <div id="sidebar" class="sidebar collapsed">
+        <div class="sidebar-header">
+            <h3>Categories</h3>
+            <button id="toggleSidebar" class="toggle-sidebar"></button>
+        </div>
+        <div id="categoryList" class="category-list">
+            <!-- Categories will be dynamically added here -->
+        </div>
+    </div>
+    <div id="mainContent" class="main-content">
+        <div id="filterContainer" class="filter-container collapsed">
+            <button id="toggleFilters" class="toggle-filters" onclick="UIManager.toggleFilters()">Filters ▼</button>
+            <div class="filter-controls">
+                <select id="statusFilter" class="filter-select">
+                    <option value="active">Active</option>
+                    <option value="completed">Completed</option>
+                    <option value="all">All Status</option>
+                </select>
+                <select id="priorityFilter" class="filter-select">
+                    <option value="all">All Priorities</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+                <select id="dueDateFilter" class="filter-select">
+                    <option value="all">All Dates</option>
+                    <option value="today">Due Today</option>
+                    <option value="week">Due This Week</option>
+                    <option value="overdue">Overdue</option>
+                </select>
+                <select id="sortBy" class="filter-select">
+                    <option value="dueDate-asc">Due Date ▲</option>
+                    <option value="dueDate-desc">Due Date ▼</option>
+                    <option value="priority-desc">Priority ▼</option>
+                    <option value="priority-asc">Priority ▲</option>
+                    <option value="name-asc">Name A-Z</option>
+                    <option value="name-desc">Name Z-A</option>
+                </select>
+            </div>
+        </div>
+        <div class="task-list" id="taskList"></div>
+    </div>
+    <button id="addTaskButton" class="add-task-button">+</button>
+    <!-- Task Modal (Add/Edit) -->
+    <div id="taskForm" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="UIManager.hideTaskForm()">&times;</span>
+            <h3>New Task</h3>
+            <form id="taskFormElement">
+                <input type="hidden" id="taskId" name="taskId">
+                <input type="hidden" id="parentTaskId" name="parentTaskId">
+                <div class="inline-input-container">
+                    <input type="text" id="taskName" name="taskName" class="inline-input title-style" placeholder="Task Name" required>
+                </div>
+                <div class="inline-input-container">
+                    <textarea id="description" name="description" class="inline-input description-style" placeholder="Add description..." rows="1"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group due-date-container">
+                        <label for="dueDate">Due Date</label>
+                        <div class="due-date" onclick="UIManager.editTaskDueDate(event, 'modal')">
+                            <span id="modalDueDateDisplay">None</span>
+                        </div>
+                        <div class="date-picker-dropdown" style="display: none;">
+                            <div class="date-picker-header">
+                                <span class="clear-date" onclick="UIManager.clearDueDate(event, 'modal')">Clear</span>
+                                <span class="quick-dates">
+                                    <span onclick="UIManager.setQuickDate(event, 'modal', 'today')">Today</span>
+                                    <span onclick="UIManager.setQuickDate(event, 'modal', 'tomorrow')">Tomorrow</span>
+                                    <span onclick="UIManager.setQuickDate(event, 'modal', 'nextWeek')">Next Week</span>
+                                </span>
+                            </div>
+                            <input type="date" id="dueDate" name="dueDate" class="date-input" onchange="TaskManager.updateDueDate(event, 'modal')" onclick="event.stopPropagation()">
+                        </div>
+                    </div>
+                    <div class="form-group priority-container">
+                        <label for="priority">Priority</label>
+                        <div class="priority priority-Medium" onclick="UIManager.togglePriorityDropdown(event, 'modal')">
+                            <span id="modalPriorityDisplay">Medium</span>
+                        </div>
+                        <div class="priority-dropdown">
+                            <div class="priority-option priority-Low" onclick="TaskManager.updatePriority(event, 'modal', 'Low')">Low</div>
+                            <div class="priority-option priority-Medium" onclick="TaskManager.updatePriority(event, 'modal', 'Medium')">Medium</div>
+                            <div class="priority-option priority-High" onclick="TaskManager.updatePriority(event, 'modal', 'High')">High</div>
+                        </div>
+                        <input type="hidden" id="priorityHidden" name="priority" value="Medium">
+                    </div>
+                </div>
+                <div class="form-group recurring-controls">
+                    <div class="form-row">
+                        <div class="form-group repeat-group">
+                            <label for="recurringPattern">Repeat</label>
+                            <select id="recurringPattern" class="form-control">
+                                <option value="none">Does not repeat</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekday">Every weekday</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="biweekly">Every 2 weeks</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="yearly">Yearly</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="recurring-options" style="display: none;">
+                        <div class="form-row">
+                            <div class="form-group end-group">
+                                <label>Ends</label>
+                                <div class="recurring-end-options">
+                                    <div class="radio-option">
+                                        <input type="radio" id="endNever" name="recurringEnd" value="never" checked>
+                                        <label for="endNever">Never</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="endAfter" name="recurringEnd" value="after">
+                                        <label for="endAfter">After</label>
+                                        <div class="input-wrapper">
+                                            <input type="number" id="occurenceCount" min="1" max="99" value="1" disabled>
+                                            <span>occurrences</span>
+                                        </div>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="endOn" name="recurringEnd" value="on">
+                                        <label for="endOn">On</label>
+                                        <div class="input-wrapper">
+                                            <input type="date" id="endDate" disabled>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group custom-repeat" style="display: none;">
+                                <label for="customInterval">Repeat every</label>
+                                <div class="custom-repeat-input">
+                                    <input type="number" id="customInterval" min="1" max="99" value="1">
+                                    <select id="customUnit">
+                                        <option value="days">Days</option>
+                                        <option value="weeks">Weeks</option>
+                                        <option value="months">Months</option>
+                                        <option value="years">Years</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" id="taskFormSubmit" class="btn btn-primary">Add Task</button>
+            </form>
+        </div>
+    </div>
+    <!-- Recurring Pattern Modal -->
+    <div id="recurringEditModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="UIManager.hideRecurringEditForm()">&times;</span>
+            <h3>Edit Recurring Pattern</h3>
+            <form id="recurringEditForm">
+                <input type="hidden" id="editRecurringTaskId">
+                <div class="form-group">
+                    <label for="editRecurringPattern">Repeat</label>
+                    <select id="editRecurringPattern" class="form-control">
+                        <option value="none">Does not repeat</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekday">Every weekday</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Every 2 weeks</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                </div>
+                <div class="recurring-options">
+                    <div class="form-row">
+                        <div class="form-group end-group">
+                            <label>Ends</label>
+                            <div class="recurring-end-options">
+                                <div class="radio-option">
+                                    <input type="radio" id="editEndNever" name="editRecurringEnd" value="never" checked>
+                                    <label for="editEndNever">Never</label>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="editEndAfter" name="editRecurringEnd" value="after">
+                                    <label for="editEndAfter">After</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="editOccurenceCount" min="1" max="99" value="1" disabled>
+                                        <span>occurrences</span>
+                                    </div>
+                                </div>
+                                <div class="radio-option">
+                                    <input type="radio" id="editEndOn" name="editRecurringEnd" value="on">
+                                    <label for="editEndOn">On</label>
+                                    <div class="input-wrapper">
+                                        <input type="date" id="editEndDate" disabled>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group custom-repeat" style="display: none;">
+                            <label for="editCustomInterval">Repeat every</label>
+                            <div class="custom-repeat-input">
+                                <input type="number" id="editCustomInterval" min="1" max="99" value="1">
+                                <select id="editCustomUnit">
+                                    <option value="days">Days</option>
+                                    <option value="weeks">Weeks</option>
+                                    <option value="months">Months</option>
+                                    <option value="years">Years</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="recurringFormSubmit">Update Recurring Pattern</button>
+            </form>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
 </html>

@@ -469,7 +469,7 @@ const TaskManager = {
 		const taskName = formData.get('taskName');
 		if (!taskName || taskName.trim() === '') {
 			console.error('Task name is required');
-			// TODO: Show an error message to the user here
+			UIManager.showMessage('Task name is required', { type: 'error' });
 			return;
 		}
 
