@@ -471,7 +471,7 @@ body {
 .form-group input,
 .form-group textarea,
 .form-group select {
-	width: 48%;
+	width: 100%;
 	padding: 8px;
 	border: 1px solid #ddd;
 	border-radius: 4px;
@@ -644,11 +644,6 @@ body {
 
 .recurring-options .form-row {
     grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-}
-
-.repeat-group,
-.end-group {
-	max-width: 200px;
 }
 
 .recurring-end-options {
