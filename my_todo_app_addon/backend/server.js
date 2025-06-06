@@ -321,49 +321,50 @@ app.post('/api/tasks', async (req, res) => {
     if (!title) {
         return res.status(400).json({ error: 'Title is required' });
     }
-	
+
     const columns = ['title', 'description', 'dueDate', 'priority', 'status', 'parentTaskId', 'category', 'progress'];
     const placeholders = Array(columns.length).fill('?');
     const values = [title, description, dueDate, priority, status, parentTaskId, category, progress];
-	
+
     const filteredColumns = [];
     const filteredPlaceholders = [];
     const filteredValues = [];
-	
+
     if (recurring !== undefined && recurring !== null && typeof recurring === 'object') {
         filteredColumns.push('recurring');
         filteredPlaceholders.push('?');
-        filteredValues.push(JSON.stringify(recurring));
+        filteredValues.push(JSON.stringify(recurring)); // Stringify the object for DB storage
     }
-	
+
     for (let i = 0; i < columns.length; i++) {
-        // Only include if value is not undefined (i.e., it was explicitly sent in the request body)
-        // Note: Empty strings are still valid data for the database
         if (values[i] !== undefined) {
             filteredColumns.push(columns[i]);
             filteredPlaceholders.push(placeholders[i]);
             filteredValues.push(values[i]);
         }
     }
-	
+
     try {
         const result = await db.runAsync(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues);
         const newTaskId = result.lastID;
-        const newTask = await db.get('SELECT * FROM tasks WHERE id = ?', [newTaskId]); // Retrieve the newly created task
+        const rawNewTask = await db.get('SELECT * FROM tasks WHERE id = ?', [newTaskId]); // Get the raw task from DB
+
+        // --- FIX: Process the task row ONCE and store it ---
+        const processedNewTask = processTaskRow(rawNewTask);
 
         debouncedPublishUpcomingTasksState();
 
-        io.emit('taskCreated', processTaskRow(newTask)); // Emitting with the correctly retrieved newTask
-        console.log('Emitted WebSocket event: taskCreated', newTask.title);
+        io.emit('taskCreated', processedNewTask); // Emit the already processed task
+        console.log('Emitted WebSocket event: taskCreated', processedNewTask.title);
 
-        res.status(201).json(processTaskRow(newTask));
+        res.status(201).json(processedNewTask); // Send the already processed task
     } catch (err) {
         console.error('Error creating task:', err.message);
         res.status(500).json({ error: 'Failed to create task.' });
     }
 });
 
-// 4. PUT/PATCH update an existing task (e.g., toggle completed status or update title)
+// 4. PUT/PATCH update an existing task
 app.put('/api/tasks/:id', async (req, res) => {
     const { id } = req.params;
     const { title, completed, description, dueDate, priority, status, parentTaskId, category, progress, recurring } = req.body;
@@ -372,48 +373,21 @@ app.put('/api/tasks/:id', async (req, res) => {
     let params = [];
     let sql = 'UPDATE tasks SET ';
 
-    if (title !== undefined) {
-        updates.push('title = ?');
-        params.push(title);
-    }
-    if (completed !== undefined) {
-        updates.push('completed = ?');
-        params.push(completed ? 1 : 0); // SQLite stores booleans as 0 or 1
-    }
-	if (description !== undefined) {
-        updates.push('description = ?');
-        params.push(description);
-    }
-    if (dueDate !== undefined) {
-        updates.push('dueDate = ?');
-        params.push(dueDate);
-    }
-    if (priority !== undefined) {
-        updates.push('priority = ?');
-        params.push(priority);
-    }
-    if (status !== undefined) {
-        updates.push('status = ?');
-        params.push(status);
-    }
-    if (parentTaskId !== undefined) {
-        updates.push('parentTaskId = ?');
-        params.push(parentTaskId);
-    }
-    if (category !== undefined) {
-        updates.push('category = ?');
-        params.push(category);
-    }
-    if (progress !== undefined) {
-        updates.push('progress = ?');
-        params.push(progress);
-    }
-	if (recurring !== undefined) {
+    if (title !== undefined) { updates.push('title = ?'); params.push(title); }
+    if (completed !== undefined) { updates.push('completed = ?'); params.push(completed ? 1 : 0); }
+    if (description !== undefined) { updates.push('description = ?'); params.push(description); }
+    if (dueDate !== undefined) { updates.push('dueDate = ?'); params.push(dueDate); }
+    if (priority !== undefined) { updates.push('priority = ?'); params.push(priority); }
+    if (status !== undefined) { updates.push('status = ?'); params.push(status); }
+    if (parentTaskId !== undefined) { updates.push('parentTaskId = ?'); params.push(parentTaskId); }
+    if (category !== undefined) { updates.push('category = ?'); params.push(category); }
+    if (progress !== undefined) { updates.push('progress = ?'); params.push(progress); }
+    if (recurring !== undefined) {
         updates.push('recurring = ?');
-        if (recurring === null || typeof recurring !== 'object') { // Allow clearing recurring or invalid data
+        if (recurring === null || typeof recurring !== 'object') {
             params.push(''); // Save as empty string or NULL if not an object
         } else {
-            params.push(JSON.stringify(recurring)); // Stringify the object
+            params.push(JSON.stringify(recurring)); // Stringify the object for DB storage
         }
     }
 
@@ -429,13 +403,17 @@ app.put('/api/tasks/:id', async (req, res) => {
         if (result.changes === 0) {
             return res.status(404).json({ message: 'Task not found or no changes made.' });
         }
-        const updatedTask = await db.get('SELECT * FROM tasks WHERE id = ?', [id]); // Retrieve the updated task
+        const rawUpdatedTask = await db.get('SELECT * FROM tasks WHERE id = ?', [id]); // Get the raw task from DB
+
+        // --- FIX: Process the task row ONCE and store it ---
+        const processedUpdatedTask = processTaskRow(rawUpdatedTask);
+
         debouncedPublishUpcomingTasksState();
 
-        io.emit('taskUpdated', processTaskRow(updatedTask)); // Emitting with the correctly retrieved updatedTask
-        console.log('Emitted WebSocket event: taskUpdated', updatedTask.title);
+        io.emit('taskUpdated', processedUpdatedTask); // Emit the already processed task
+        console.log('Emitted WebSocket event: taskUpdated', processedUpdatedTask.title);
 
-        res.json({ message: 'Task updated successfully', task: processTaskRow(updatedTask) });
+        res.json({ message: 'Task updated successfully', task: processedUpdatedTask }); // Send the already processed task
     } catch (err) {
         console.error('Error updating task:', err.message);
         res.status(500).json({ error: 'Failed to update task.' });
