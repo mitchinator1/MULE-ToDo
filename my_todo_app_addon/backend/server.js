@@ -1,16 +1,54 @@
 console.log("SERVER.JS: STARTING EXECUTION");
 
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io')
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const mqtt = require('mqtt');
+const util = require('util');
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = socketIo(server, {
+    cors: {
+        origin: "*", // Allows connections from any origin. For production, you might restrict this to your frontend's URL.
+        methods: ["GET", "POST"] // Allowed HTTP methods for the WebSocket handshake
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 const BIND_IP = '0.0.0.0';
 
 app.use(cors()); // Enable CORS for all routes (important for development)
 app.use(express.json()); // Enable parsing of JSON request bodies
+
+// --- Socket.IO Connection Handler ---
+// This block defines what happens when a client connects/disconnects via WebSocket.
+// It should be placed here, after `io` is initialized, but outside connectMqttAndStartServer.
+io.on('connection', (socket) => {
+    console.log('A client connected via WebSocket. ID:', socket.id);
+    // You can send initial data here if needed for newly connected clients
+    // Example: send all current tasks to a new client upon connection
+    // try {
+    //     const allTasks = await db.all('SELECT * FROM tasks');
+    //     socket.emit('initialTasks', allTasks.map(processTaskRow));
+    // } catch (err) {
+    //     console.error('Error sending initial tasks to new client:', err.message);
+    // }
+
+    socket.on('disconnect', () => {
+        console.log('A client disconnected from WebSocket. ID:', socket.id);
+    });
+
+    // You can also listen for events sent *from* the client here if your frontend needs to send messages
+    // socket.on('someClientEvent', (data) => {
+    //     console.log('Received event from client:', data);
+    //     // Process data, maybe update DB, then emit back
+    // });
+});
 
 // MQTT Configuration
 const MQTT_BROKER = process.env.MQTT_BROKER;
@@ -35,7 +73,7 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
     json_attributes_topic: UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, // Use this for a list of tasks
     unit_of_measurement: "tasks",
     icon: "mdi:calendar-check",
-    device: { // Optional: Create a device in HA for your add-on
+    device: {
         identifiers: [`${ADDON_SLUG}_device`],
         name: "My To-Do App",
         model: "To-Do Add-on",
@@ -68,17 +106,32 @@ const db = new sqlite3.Database('/data/todo.db', (err) => {
         )`, (createErr) => {
             if (createErr) {
                 console.error('Error creating table:', createErr.message);
-		process.exit(1);
+		        process.exit(1);
             } else {
                 console.log('Tasks table ensured.');
-		connectMqttAndStartServer();
+		        connectMqttAndStartServer();
             }
         });
     }
 });
 
+// Promisify db methods for async/await
+db.all = util.promisify(db.all);
+db.get = util.promisify(db.get);
+db.runAsync = function (sql, params) {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve({ lastID: this.lastID, changes: this.changes });
+            }
+        });
+    });
+};
+
 const processTaskRow = (row) => {
-    if (row && row.recurring) { // Check if row exists and has a recurring property
+    if (row && row.recurring) {
         try {
             // Attempt to parse the recurring string into a JSON object
             row.recurring = JSON.parse(row.recurring);
@@ -142,7 +195,7 @@ function connectMqttAndStartServer() {
     });
 
     // Start the Express server - THIS WAS MISSING ITS WRAPPER IN YOUR PROVIDED CODE
-    const httpServer = app.listen(PORT, BIND_IP, () => {
+    server.listen(PORT, BIND_IP, () => {
         console.log(`Server running on ${BIND_IP}:${PORT}`);
         console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`);
         console.log(`API will be accessible via ingress`);
@@ -151,12 +204,12 @@ function connectMqttAndStartServer() {
 
     console.log("SERVER.JS: app.listen() call completed. Process should now be kept alive by server.");
 
-    httpServer.on('error', (err) => {
+    server.on('error', (err) => {
         console.error('HTTP Server Error (from event listener):', err.message, err.stack);
         process.exit(1);
     });
 
-    httpServer.on('close', () => {
+    server.on('close', () => {
         console.log('HTTP Server Closed (from event listener).');
     });
 
@@ -204,30 +257,30 @@ function publishUpcomingTasksState() {
             }
         });
 
-	upcomingTasks.sort((a, b) => {
-	    const dateA = new Date(a.dueDate);
-	    const dateB = new Date(b.dueDate);
-	    if (dateA - dateB !== 0) {
-	        return dateA - dateB;
-	    }
-	    return a.id - b.id;
-	});
+	    upcomingTasks.sort((a, b) => {
+	        const dateA = new Date(a.dueDate);
+	        const dateB = new Date(b.dueDate);
+	        if (dateA - dateB !== 0) {
+	            return dateA - dateB;
+	        }
+	        return a.id - b.id;
+	    });
 
         const count = upcomingTasks.length;
-	const nextDueId = count > 0 ? upcomingTasks[0].id : null;
+	    const nextDueId = count > 0 ? upcomingTasks[0].id : null;
         mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, String(count), { retain: false });
         console.log(`Published upcoming tasks count: ${count}`);
 
         // --- Publish the detailed attributes as JSON ---
         mqttClient.publish(
-	  UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
-	  JSON.stringify({
-	    count: upcomingTasks.length,
-	    next_due_id: nextDueId,
-	    tasks: upcomingTasks
-	  }),
-	  { retain: false }
-	);
+	        UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
+	        JSON.stringify({
+	        count: upcomingTasks.length,
+	        next_due_id: nextDueId,
+	        tasks: upcomingTasks
+	      }),
+	      { retain: false }
+	    );
         console.log(`Published upcoming tasks attributes: ${JSON.stringify(upcomingTasks)}`);
     });
 }
@@ -236,38 +289,37 @@ const debouncedPublishUpcomingTasksState = debounce(publishUpcomingTasksState, 5
 app.use(express.static('/app/frontend'));
 
 // 1. GET all tasks
-app.get('/api/tasks', (req, res) => {
-    db.all('SELECT * FROM tasks', [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
+app.get('/api/tasks', async (req, res) => {
+    try {
+        const rows = await db.all('SELECT * FROM tasks', []);
         res.json(rows.map(processTaskRow));
-    });
+    } catch (err) {
+        console.error('Error getting tasks:', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // 2. GET a single task by ID
-app.get('/api/tasks/:id', (req, res) => {
+app.get('/api/tasks/:id', async (req, res) => {
     const { id } = req.params;
-    db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
+    try {
+        const row = await db.get('SELECT * FROM tasks WHERE id = ?', [id]);
         if (!row) {
             res.status(404).json({ message: 'Task not found' });
             return;
         }
         res.json(processTaskRow(row));
-    });
+    } catch (err) {
+        console.error('Error getting single task:', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // 3. POST a new task
-app.post('/api/tasks', (req, res) => {
+app.post('/api/tasks', async (req, res) => {
     const { title, description, dueDate, priority, status, parentTaskId, category, progress, recurring } = req.body;
     if (!title) {
-        res.status(400).json({ error: 'Title is required' });
-        return;
+        return res.status(400).json({ error: 'Title is required' });
     }
 	
     const columns = ['title', 'description', 'dueDate', 'priority', 'status', 'parentTaskId', 'category', 'progress'];
@@ -281,7 +333,7 @@ app.post('/api/tasks', (req, res) => {
     if (recurring !== undefined && recurring !== null && typeof recurring === 'object') {
         filteredColumns.push('recurring');
         filteredPlaceholders.push('?');
-        filteredValues.push(JSON.stringify(recurring)); // Stringify the object
+        filteredValues.push(JSON.stringify(recurring));
     }
 	
     for (let i = 0; i < columns.length; i++) {
@@ -294,27 +346,25 @@ app.post('/api/tasks', (req, res) => {
         }
     }
 	
-    db.run(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues, function(err) {
-        if (err) {
-	    console.error('Error inserting task:', err.message);
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        // Return the newly created task with its ID
-        const newTaskId = this.lastID;
-        db.get('SELECT * FROM tasks WHERE id = ?', [newTaskId], (err, row) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-	    debouncedPublishUpcomingTasksState();
-            res.status(201).json(processTaskRow(row)); // Send the full new task object back
-        });
-    });
+    try {
+        const result = await db.runAsync(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues);
+        const newTaskId = result.lastID;
+        const newTask = await db.get('SELECT * FROM tasks WHERE id = ?', [newTaskId]); // Retrieve the newly created task
+
+        debouncedPublishUpcomingTasksState();
+
+        io.emit('taskCreated', processTaskRow(newTask)); // Emitting with the correctly retrieved newTask
+        console.log('Emitted WebSocket event: taskCreated', newTask.title);
+
+        res.status(201).json(processTaskRow(newTask));
+    } catch (err) {
+        console.error('Error creating task:', err.message);
+        res.status(500).json({ error: 'Failed to create task.' });
+    }
 });
 
 // 4. PUT/PATCH update an existing task (e.g., toggle completed status or update title)
-app.put('/api/tasks/:id', (req, res) => {
+app.put('/api/tasks/:id', async (req, res) => {
     const { id } = req.params;
     const { title, completed, description, dueDate, priority, status, parentTaskId, category, progress, recurring } = req.body;
 
@@ -374,43 +424,42 @@ app.put('/api/tasks/:id', (req, res) => {
     sql += updates.join(', ') + ' WHERE id = ?';
     params.push(id);
 
-    db.run(sql, params, function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
+    try {
+        const result = await db.runAsync(sql, params);
+        if (result.changes === 0) {
+            return res.status(404).json({ message: 'Task not found or no changes made.' });
         }
-        if (this.changes === 0) {
-            res.status(404).json({ message: 'Task not found or no changes made' });
-            return;
-        }
-	const updatedTaskId = id;
-	db.get('SELECT * FROM tasks WHERE id = ?', [updatedTaskId], (err, row) => {
-		if (err) { 
-			res.status(500).json({ error: err.message });
-                	return;			
-		}
-		if (!row) { /* ... not found for retrieval handling ... */ } // TODO
-		debouncedPublishUpcomingTasksState();
-		res.json({ message: 'Task updated successfully', task: processTaskRow(row) });
-	});
-    });
+        const updatedTask = await db.get('SELECT * FROM tasks WHERE id = ?', [id]); // Retrieve the updated task
+        debouncedPublishUpcomingTasksState();
+
+        io.emit('taskUpdated', processTaskRow(updatedTask)); // Emitting with the correctly retrieved updatedTask
+        console.log('Emitted WebSocket event: taskUpdated', updatedTask.title);
+
+        res.json({ message: 'Task updated successfully', task: processTaskRow(updatedTask) });
+    } catch (err) {
+        console.error('Error updating task:', err.message);
+        res.status(500).json({ error: 'Failed to update task.' });
+    }
 });
 
 // 5. DELETE a task
-app.delete('/api/tasks/:id', (req, res) => {
+app.delete('/api/tasks/:id', async (req, res) => {
     const { id } = req.params;
-    db.run('DELETE FROM tasks WHERE id = ?', [id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
+    try {
+        const result = await db.runAsync('DELETE FROM tasks WHERE id = ?', [id]);
+        if (result.changes === 0) {
+            return res.status(404).json({ message: 'Task not found' });
         }
-        if (this.changes === 0) {
-            res.status(404).json({ message: 'Task not found' });
-            return;
-        }
-	debouncedPublishUpcomingTasksState();
-        res.json({ message: 'Task deleted successfully', changes: this.changes });
-    });
+        debouncedPublishUpcomingTasksState();
+
+        io.emit('taskDeleted', id);
+        console.log('Emitted WebSocket event: taskDeleted for ID:', id);
+
+        res.json({ message: 'Task deleted successfully', changes: result.changes });
+    } catch (err) {
+        console.error('Error deleting task:', err.message);
+        res.status(500).json({ error: 'Failed to delete task.' });
+    }
 });
 
 // Global error handlers (important for debugging)
