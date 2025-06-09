@@ -1999,8 +1999,9 @@ const FilterManager = {
 	
 };
 
-const socket = io({
-	path: `/hassio/ingress/my_todo_app/socket.io`
+const socket = io(window.location.origin, {
+	path: `/hassio/ingress/my_todo_app/socket.io`,
+	transports: ['websocket', 'polling']
 });
 
 // --- Socket Connection Status Logging (for debugging) ---
