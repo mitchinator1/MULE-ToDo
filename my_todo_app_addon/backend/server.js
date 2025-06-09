@@ -2,7 +2,6 @@ console.log("SERVER.JS: STARTING EXECUTION");
 
 const express = require('express');
 const http = require('http');
-const socketIo = require('socket.io')
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const mqtt = require('mqtt');
@@ -11,44 +10,11 @@ const util = require('util');
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.IO
-const io = socketIo(server, {
-    cors: {
-        origin: "*", // Allows connections from any origin. For production, you might restrict this to your frontend's URL.
-        methods: ["GET", "POST"] // Allowed HTTP methods for the WebSocket handshake
-    }
-});
-
 const PORT = process.env.PORT || 3000;
 const BIND_IP = '0.0.0.0';
 
 app.use(cors()); // Enable CORS for all routes (important for development)
 app.use(express.json()); // Enable parsing of JSON request bodies
-
-// --- Socket.IO Connection Handler ---
-// This block defines what happens when a client connects/disconnects via WebSocket.
-// It should be placed here, after `io` is initialized, but outside connectMqttAndStartServer.
-io.on('connection', (socket) => {
-    console.log('A client connected via WebSocket. ID:', socket.id);
-    // You can send initial data here if needed for newly connected clients
-    // Example: send all current tasks to a new client upon connection
-    // try {
-    //     const allTasks = await db.all('SELECT * FROM tasks');
-    //     socket.emit('initialTasks', allTasks.map(processTaskRow));
-    // } catch (err) {
-    //     console.error('Error sending initial tasks to new client:', err.message);
-    // }
-
-    socket.on('disconnect', () => {
-        console.log('A client disconnected from WebSocket. ID:', socket.id);
-    });
-
-    // You can also listen for events sent *from* the client here if your frontend needs to send messages
-    // socket.on('someClientEvent', (data) => {
-    //     console.log('Received event from client:', data);
-    //     // Process data, maybe update DB, then emit back
-    // });
-});
 
 // MQTT Configuration
 const MQTT_BROKER = process.env.MQTT_BROKER;
@@ -354,7 +320,7 @@ app.post('/api/tasks', async (req, res) => {
 
         debouncedPublishUpcomingTasksState();
 
-        io.emit('taskCreated', processedNewTask); // Emit the already processed task
+        mqttClient.publish('task_created', JSON.stringify(processedNewTask), { retain: false });
         console.log('Emitted WebSocket event: taskCreated', processedNewTask.title);
 
         res.status(201).json(processedNewTask); // Send the already processed task
@@ -410,7 +376,7 @@ app.put('/api/tasks/:id', async (req, res) => {
 
         debouncedPublishUpcomingTasksState();
 
-        io.emit('taskUpdated', processedUpdatedTask); // Emit the already processed task
+        // io.emit('taskUpdated', processedUpdatedTask); // Emit the already processed task
         console.log('Emitted WebSocket event: taskUpdated', processedUpdatedTask.title);
 
         res.json({ message: 'Task updated successfully', task: processedUpdatedTask }); // Send the already processed task
@@ -430,7 +396,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
         }
         debouncedPublishUpcomingTasksState();
 
-        io.emit('taskDeleted', id);
+        // io.emit('taskDeleted', id);
         console.log('Emitted WebSocket event: taskDeleted for ID:', id);
 
         res.json({ message: 'Task deleted successfully', changes: result.changes });
