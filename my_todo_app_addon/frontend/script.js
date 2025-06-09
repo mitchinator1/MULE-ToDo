@@ -1999,7 +1999,9 @@ const FilterManager = {
 	
 };
 
-const socket = io();
+const socket = io({
+	path: `/hassio/ingress/my_todo_app/socket.io`
+});
 
 // --- Socket Connection Status Logging (for debugging) ---
 socket.on('connect', () => {
@@ -2013,8 +2015,7 @@ socket.on('disconnect', (reason) => {
 
 socket.on('connect_error', (error) => {
 	console.error('WebSocket: Connection error:', error.message);
-	errorMessage.textContent = `WebSocket connection error: ${error.message}. Please check your backend.`;
-	errorMessage.style.display = 'block';
+	MULE.Snackbar.show(`WebSocket connection error: ${error.message}. Please check your backend.`, { type: 'error' });
 });
 
 
