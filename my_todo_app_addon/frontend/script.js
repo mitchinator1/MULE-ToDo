@@ -1999,7 +1999,7 @@ const FilterManager = {
 	
 };
 
-const client = mqtt.connect('ws://localhost:1884'); // Adjust port if using Mosquitto with WebSocket enabled
+const client = mqtt.connect('ws://core-mosquitto:1884'); // Adjust port if using Mosquitto with WebSocket enabled
 
 client.on('connect', () => {
     console.log('Connected to MQTT broker over WebSocket');
