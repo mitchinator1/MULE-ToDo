@@ -849,7 +849,11 @@ const APIManager = {
 
             // For DELETE requests, the backend might not send a body, so handle accordingly
             if (options && options.method === 'DELETE') {
-                return { success: true, message: 'Deleted successfully' }; // Or parse response if your DELETE sends JSON
+				try {
+					return await response.json();
+				} catch {
+					return { message: 'Deleted with no response body' };
+				}
             }
 
             // Parse JSON response for other methods
