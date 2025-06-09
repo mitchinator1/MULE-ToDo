@@ -408,7 +408,7 @@ app.delete('/api/tasks/:id', (req, res) => {
             res.status(404).json({ message: 'Task not found' });
             return;
         }
-	debouncedPublishUpcomingTasksState();
+	    debouncedPublishUpcomingTasksState();
         res.json({ message: 'Task deleted successfully', changes: this.changes });
     });
 });
