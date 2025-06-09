@@ -1999,9 +1999,10 @@ const FilterManager = {
 	
 };
 
-const socket = io(window.location.origin, {
+const socket = io('http://homeassistant.local:8123', {
 	path: `/hassio/ingress/my_todo_app/socket.io`,
-	transports: ['websocket', 'polling']
+	transports: ['websocket', 'polling'],
+	upgrade: true
 });
 
 // --- Socket Connection Status Logging (for debugging) ---
@@ -2019,6 +2020,21 @@ socket.on('connect_error', (error) => {
 	MULE.Snackbar.show(`WebSocket connection error: ${error.message}. Please check your backend.`, { type: 'error' });
 });
 
+socket.on('reconnect_attempt', (attemptNumber) => {
+    console.log(`WebSocket: Reconnect attempt ${attemptNumber}...`);
+});
+socket.on('reconnect_error', (error) => {
+    console.error('WebSocket: Reconnect error:', error.message);
+});
+socket.on('reconnect_failed', () => {
+    console.error('WebSocket: Reconnect failed permanently. Check network/server.');
+});
+socket.on('ping', () => {
+    console.log('WebSocket: Ping from server received.');
+});
+socket.on('pong', (latency) => {
+    console.log('WebSocket: Pong received. Latency:', latency, 'ms');
+});
 
 // --- Real-time Task Event Handlers ---
 
