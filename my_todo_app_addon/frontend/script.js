@@ -1999,71 +1999,23 @@ const FilterManager = {
 	
 };
 
-const socket = io('http://homeassistant.local:8123', {
-	path: `/hassio/ingress/my_todo_app/socket.io`,
-	transports: ['websocket', 'polling'],
-	upgrade: true
+const client = mqtt.connect('ws://localhost:1884'); // Adjust port if using Mosquitto with WebSocket enabled
+
+client.on('connect', () => {
+    console.log('Connected to MQTT broker over WebSocket');
+    client.subscribe('mule/todo/task_created', (err) => {
+        if (!err) {
+            console.log('Subscribed to task updates');
+        }
+    });
 });
 
-// --- Socket Connection Status Logging (for debugging) ---
-socket.on('connect', () => {
-	console.log('WebSocket: Connected! Client ID:', socket.id);
-});
-
-socket.on('disconnect', (reason) => {
-	console.warn('WebSocket: Disconnected. Reason:', reason);
-	// You might want to show a "connection lost" message to the user here
-});
-
-socket.on('connect_error', (error) => {
-	console.error('WebSocket: Connection error:', error.message);
-	MULE.Snackbar.show(`WebSocket connection error: ${error.message}. Please check your backend.`, { type: 'error' });
-});
-
-socket.on('reconnect_attempt', (attemptNumber) => {
-    console.log(`WebSocket: Reconnect attempt ${attemptNumber}...`);
-});
-socket.on('reconnect_error', (error) => {
-    console.error('WebSocket: Reconnect error:', error.message);
-});
-socket.on('reconnect_failed', () => {
-    console.error('WebSocket: Reconnect failed permanently. Check network/server.');
-});
-socket.on('ping', () => {
-    console.log('WebSocket: Ping from server received.');
-});
-socket.on('pong', (latency) => {
-    console.log('WebSocket: Pong received. Latency:', latency, 'ms');
-});
-
-// --- Real-time Task Event Handlers ---
-
-socket.on('taskCreated', (newTask) => {
-	console.log('WebSocket: Received taskCreated event:', newTask);
-	// Add the new task to our local array only if it doesn't already exist
-	// (useful to prevent duplicates if initial fetch and WebSocket event overlap)
-	//if (!tasks.some(task => task.id === newTask.id)) {
-	//	tasks.push(newTask);
-	//	renderTasks(); // Re-render the entire list to reflect the change
-	//}
-	DataManager.addTask(newTask);
-	UIManager.addTaskToUI(newTask);
-});
-
-socket.on('taskUpdated', (updatedTask) => {
-	console.log('WebSocket: Received taskUpdated event:', updatedTask);
-	// Find the task in our array and replace it with the updated version
-	tasks = tasks.map(task =>
-		task.id === updatedTask.id ? updatedTask : task
-	);
-	renderTasks(); // Re-render the entire list
-});
-
-socket.on('taskDeleted', (deletedTaskId) => {
-	console.log('WebSocket: Received taskDeleted event for ID:', deletedTaskId);
-	// Filter out the deleted task from our array
-	tasks = tasks.filter(task => task.id !== deletedTaskId);
-	renderTasks(); // Re-render the entire list
+client.on('message', (topic, message) => {
+    if (topic === 'mule/todo/task_created') {
+        const newTask = JSON.parse(message.toString());
+        // Now update your UI with this new task
+        addTaskToUI(newTask);
+    }
 });
 
 // Initialize the TaskManager
@@ -2071,11 +2023,4 @@ document.addEventListener('DOMContentLoaded', () => {
     TaskManager.init().catch(error => {
         console.error('Failed to initialize application:', error);
     });
-});
-
-window.addEventListener('beforeunload', () => {
-	if (socket && socket.connected) {
-		socket.disconnect();
-		console.log('WebSocket: Client disconnected on page unload.');
-	}
 });
