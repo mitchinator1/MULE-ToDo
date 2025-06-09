@@ -1,5 +1,5 @@
 name: My To-Do App
-version: 0.9.503
+version: 0.9.51
 slug: my_todo_app
 description: A simple to-do list application for Home Assistant
 url: "https://github.com/mitchinator1/MULE-ToDo/tree/main/my_todo_app_addon"
