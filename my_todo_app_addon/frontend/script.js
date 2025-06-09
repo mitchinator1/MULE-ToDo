@@ -1,3 +1,5 @@
+import { io } from 'socket.io-client';
+
 class StyleManager {
     static styleSheets = new Map();
     static addStyles(id, styles, scope = '') {
@@ -1999,9 +2001,65 @@ const FilterManager = {
 	
 };
 
+const socket = io();
+
+// --- Socket Connection Status Logging (for debugging) ---
+socket.on('connect', () => {
+	console.log('WebSocket: Connected! Client ID:', socket.id);
+});
+
+socket.on('disconnect', (reason) => {
+	console.warn('WebSocket: Disconnected. Reason:', reason);
+	// You might want to show a "connection lost" message to the user here
+});
+
+socket.on('connect_error', (error) => {
+	console.error('WebSocket: Connection error:', error.message);
+	errorMessage.textContent = `WebSocket connection error: ${error.message}. Please check your backend.`;
+	errorMessage.style.display = 'block';
+});
+
+
+// --- Real-time Task Event Handlers ---
+
+socket.on('taskCreated', (newTask) => {
+	console.log('WebSocket: Received taskCreated event:', newTask);
+	// Add the new task to our local array only if it doesn't already exist
+	// (useful to prevent duplicates if initial fetch and WebSocket event overlap)
+	//if (!tasks.some(task => task.id === newTask.id)) {
+	//	tasks.push(newTask);
+	//	renderTasks(); // Re-render the entire list to reflect the change
+	//}
+	DataManager.addTask(newTask);
+	UIManager.addTaskToUI(newTask);
+});
+
+socket.on('taskUpdated', (updatedTask) => {
+	console.log('WebSocket: Received taskUpdated event:', updatedTask);
+	// Find the task in our array and replace it with the updated version
+	tasks = tasks.map(task =>
+		task.id === updatedTask.id ? updatedTask : task
+	);
+	renderTasks(); // Re-render the entire list
+});
+
+socket.on('taskDeleted', (deletedTaskId) => {
+	console.log('WebSocket: Received taskDeleted event for ID:', deletedTaskId);
+	// Filter out the deleted task from our array
+	tasks = tasks.filter(task => task.id !== deletedTaskId);
+	renderTasks(); // Re-render the entire list
+});
+
 // Initialize the TaskManager
 document.addEventListener('DOMContentLoaded', () => {
     TaskManager.init().catch(error => {
         console.error('Failed to initialize application:', error);
     });
+});
+
+window.addEventListener('beforeunload', () => {
+	if (socket && socket.connected) {
+		socket.disconnect();
+		console.log('WebSocket: Client disconnected on page unload.');
+	}
 });
