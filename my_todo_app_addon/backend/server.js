@@ -1,15 +1,11 @@
 console.log("SERVER.JS: STARTING EXECUTION");
 
 const express = require('express');
-const http = require('http');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const mqtt = require('mqtt');
-const util = require('util');
 
 const app = express();
-const server = http.createServer(app);
-
 const PORT = process.env.PORT || 3000;
 const BIND_IP = '0.0.0.0';
 
@@ -39,7 +35,7 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
     json_attributes_topic: UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, // Use this for a list of tasks
     unit_of_measurement: "tasks",
     icon: "mdi:calendar-check",
-    device: {
+    device: { // Optional: Create a device in HA for your add-on
         identifiers: [`${ADDON_SLUG}_device`],
         name: "My To-Do App",
         model: "To-Do Add-on",
@@ -72,32 +68,17 @@ const db = new sqlite3.Database('/data/todo.db', (err) => {
         )`, (createErr) => {
             if (createErr) {
                 console.error('Error creating table:', createErr.message);
-		        process.exit(1);
+		process.exit(1);
             } else {
                 console.log('Tasks table ensured.');
-		        connectMqttAndStartServer();
+		connectMqttAndStartServer();
             }
         });
     }
 });
 
-// Promisify db methods for async/await
-db.all = util.promisify(db.all);
-db.get = util.promisify(db.get);
-db.runAsync = function (sql, params) {
-    return new Promise((resolve, reject) => {
-        db.run(sql, params, function (err) {
-            if (err) {
-                reject(err);
-            } else {
-                resolve({ lastID: this.lastID, changes: this.changes });
-            }
-        });
-    });
-};
-
 const processTaskRow = (row) => {
-    if (row && row.recurring) {
+    if (row && row.recurring) { // Check if row exists and has a recurring property
         try {
             // Attempt to parse the recurring string into a JSON object
             row.recurring = JSON.parse(row.recurring);
@@ -161,7 +142,7 @@ function connectMqttAndStartServer() {
     });
 
     // Start the Express server - THIS WAS MISSING ITS WRAPPER IN YOUR PROVIDED CODE
-    server.listen(PORT, BIND_IP, () => {
+    const httpServer = app.listen(PORT, BIND_IP, () => {
         console.log(`Server running on ${BIND_IP}:${PORT}`);
         console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`);
         console.log(`API will be accessible via ingress`);
@@ -170,12 +151,12 @@ function connectMqttAndStartServer() {
 
     console.log("SERVER.JS: app.listen() call completed. Process should now be kept alive by server.");
 
-    server.on('error', (err) => {
+    httpServer.on('error', (err) => {
         console.error('HTTP Server Error (from event listener):', err.message, err.stack);
         process.exit(1);
     });
 
-    server.on('close', () => {
+    httpServer.on('close', () => {
         console.log('HTTP Server Closed (from event listener).');
     });
 
@@ -223,30 +204,30 @@ function publishUpcomingTasksState() {
             }
         });
 
-	    upcomingTasks.sort((a, b) => {
-	        const dateA = new Date(a.dueDate);
-	        const dateB = new Date(b.dueDate);
-	        if (dateA - dateB !== 0) {
-	            return dateA - dateB;
-	        }
-	        return a.id - b.id;
-	    });
+	upcomingTasks.sort((a, b) => {
+	    const dateA = new Date(a.dueDate);
+	    const dateB = new Date(b.dueDate);
+	    if (dateA - dateB !== 0) {
+	        return dateA - dateB;
+	    }
+	    return a.id - b.id;
+	});
 
         const count = upcomingTasks.length;
-	    const nextDueId = count > 0 ? upcomingTasks[0].id : null;
+	const nextDueId = count > 0 ? upcomingTasks[0].id : null;
         mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, String(count), { retain: false });
         console.log(`Published upcoming tasks count: ${count}`);
 
         // --- Publish the detailed attributes as JSON ---
         mqttClient.publish(
-	        UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
-	        JSON.stringify({
-	        count: upcomingTasks.length,
-	        next_due_id: nextDueId,
-	        tasks: upcomingTasks
-	      }),
-	      { retain: false }
-	    );
+	  UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
+	  JSON.stringify({
+	    count: upcomingTasks.length,
+	    next_due_id: nextDueId,
+	    tasks: upcomingTasks
+	  }),
+	  { retain: false }
+	);
         console.log(`Published upcoming tasks attributes: ${JSON.stringify(upcomingTasks)}`);
     });
 }
@@ -255,83 +236,85 @@ const debouncedPublishUpcomingTasksState = debounce(publishUpcomingTasksState, 5
 app.use(express.static('/app/frontend'));
 
 // 1. GET all tasks
-app.get('/api/tasks', async (req, res) => {
-    try {
-        const rows = await db.all('SELECT * FROM tasks', []);
+app.get('/api/tasks', (req, res) => {
+    db.all('SELECT * FROM tasks', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
         res.json(rows.map(processTaskRow));
-    } catch (err) {
-        console.error('Error getting tasks:', err.message);
-        res.status(500).json({ error: err.message });
-    }
+    });
 });
 
 // 2. GET a single task by ID
-app.get('/api/tasks/:id', async (req, res) => {
+app.get('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
-    try {
-        const row = await db.get('SELECT * FROM tasks WHERE id = ?', [id]);
+    db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
         if (!row) {
             res.status(404).json({ message: 'Task not found' });
             return;
         }
         res.json(processTaskRow(row));
-    } catch (err) {
-        console.error('Error getting single task:', err.message);
-        res.status(500).json({ error: err.message });
-    }
+    });
 });
 
 // 3. POST a new task
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', (req, res) => {
     const { title, description, dueDate, priority, status, parentTaskId, category, progress, recurring } = req.body;
     if (!title) {
-        return res.status(400).json({ error: 'Title is required' });
+        res.status(400).json({ error: 'Title is required' });
+        return;
     }
-
+	
     const columns = ['title', 'description', 'dueDate', 'priority', 'status', 'parentTaskId', 'category', 'progress'];
     const placeholders = Array(columns.length).fill('?');
     const values = [title, description, dueDate, priority, status, parentTaskId, category, progress];
-
+	
     const filteredColumns = [];
     const filteredPlaceholders = [];
     const filteredValues = [];
-
+	
     if (recurring !== undefined && recurring !== null && typeof recurring === 'object') {
         filteredColumns.push('recurring');
         filteredPlaceholders.push('?');
-        filteredValues.push(JSON.stringify(recurring)); // Stringify the object for DB storage
+        filteredValues.push(JSON.stringify(recurring)); // Stringify the object
     }
-
+	
     for (let i = 0; i < columns.length; i++) {
+        // Only include if value is not undefined (i.e., it was explicitly sent in the request body)
+        // Note: Empty strings are still valid data for the database
         if (values[i] !== undefined) {
             filteredColumns.push(columns[i]);
             filteredPlaceholders.push(placeholders[i]);
             filteredValues.push(values[i]);
         }
     }
-
-    try {
-        const result = await db.runAsync(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues);
-        const newTaskId = result.lastID;
-        const rawNewTask = await db.get('SELECT * FROM tasks WHERE id = ?', [newTaskId]); // Get the raw task from DB
-
-        // --- FIX: Process the task row ONCE and store it ---
-        const processedNewTask = processTaskRow(rawNewTask);
-
-        debouncedPublishUpcomingTasksState();
-
-        mqttClient.publish('task_created', JSON.stringify(processedNewTask), { retain: false });
-        console.log('Emitted WebSocket event: taskCreated', processedNewTask.title);
-
-        res.status(201).json(processedNewTask); // Send the already processed task
-    } catch (err) {
-        console.error('Error creating task:', err.message);
-        res.status(500).json({ error: 'Failed to create task.' });
-    }
+	
+    db.run(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues, function(err) {
+        if (err) {
+	    console.error('Error inserting task:', err.message);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        // Return the newly created task with its ID
+        const newTaskId = this.lastID;
+        db.get('SELECT * FROM tasks WHERE id = ?', [newTaskId], (err, row) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+	    debouncedPublishUpcomingTasksState();
+            res.status(201).json(processTaskRow(row)); // Send the full new task object back
+        });
+    });
 });
 
-// 4. PUT/PATCH update an existing task
-app.put('/api/tasks/:id', async (req, res) => {
+// 4. PUT/PATCH update an existing task (e.g., toggle completed status or update title)
+app.put('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
     const { title, completed, description, dueDate, priority, status, parentTaskId, category, progress, recurring } = req.body;
 
@@ -339,21 +322,48 @@ app.put('/api/tasks/:id', async (req, res) => {
     let params = [];
     let sql = 'UPDATE tasks SET ';
 
-    if (title !== undefined) { updates.push('title = ?'); params.push(title); }
-    if (completed !== undefined) { updates.push('completed = ?'); params.push(completed ? 1 : 0); }
-    if (description !== undefined) { updates.push('description = ?'); params.push(description); }
-    if (dueDate !== undefined) { updates.push('dueDate = ?'); params.push(dueDate); }
-    if (priority !== undefined) { updates.push('priority = ?'); params.push(priority); }
-    if (status !== undefined) { updates.push('status = ?'); params.push(status); }
-    if (parentTaskId !== undefined) { updates.push('parentTaskId = ?'); params.push(parentTaskId); }
-    if (category !== undefined) { updates.push('category = ?'); params.push(category); }
-    if (progress !== undefined) { updates.push('progress = ?'); params.push(progress); }
-    if (recurring !== undefined) {
+    if (title !== undefined) {
+        updates.push('title = ?');
+        params.push(title);
+    }
+    if (completed !== undefined) {
+        updates.push('completed = ?');
+        params.push(completed ? 1 : 0); // SQLite stores booleans as 0 or 1
+    }
+	if (description !== undefined) {
+        updates.push('description = ?');
+        params.push(description);
+    }
+    if (dueDate !== undefined) {
+        updates.push('dueDate = ?');
+        params.push(dueDate);
+    }
+    if (priority !== undefined) {
+        updates.push('priority = ?');
+        params.push(priority);
+    }
+    if (status !== undefined) {
+        updates.push('status = ?');
+        params.push(status);
+    }
+    if (parentTaskId !== undefined) {
+        updates.push('parentTaskId = ?');
+        params.push(parentTaskId);
+    }
+    if (category !== undefined) {
+        updates.push('category = ?');
+        params.push(category);
+    }
+    if (progress !== undefined) {
+        updates.push('progress = ?');
+        params.push(progress);
+    }
+	if (recurring !== undefined) {
         updates.push('recurring = ?');
-        if (recurring === null || typeof recurring !== 'object') {
+        if (recurring === null || typeof recurring !== 'object') { // Allow clearing recurring or invalid data
             params.push(''); // Save as empty string or NULL if not an object
         } else {
-            params.push(JSON.stringify(recurring)); // Stringify the object for DB storage
+            params.push(JSON.stringify(recurring)); // Stringify the object
         }
     }
 
@@ -364,46 +374,43 @@ app.put('/api/tasks/:id', async (req, res) => {
     sql += updates.join(', ') + ' WHERE id = ?';
     params.push(id);
 
-    try {
-        const result = await db.runAsync(sql, params);
-        if (result.changes === 0) {
-            return res.status(404).json({ message: 'Task not found or no changes made.' });
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
         }
-        const rawUpdatedTask = await db.get('SELECT * FROM tasks WHERE id = ?', [id]); // Get the raw task from DB
-
-        // --- FIX: Process the task row ONCE and store it ---
-        const processedUpdatedTask = processTaskRow(rawUpdatedTask);
-
-        debouncedPublishUpcomingTasksState();
-
-        // io.emit('taskUpdated', processedUpdatedTask); // Emit the already processed task
-        console.log('Emitted WebSocket event: taskUpdated', processedUpdatedTask.title);
-
-        res.json({ message: 'Task updated successfully', task: processedUpdatedTask }); // Send the already processed task
-    } catch (err) {
-        console.error('Error updating task:', err.message);
-        res.status(500).json({ error: 'Failed to update task.' });
-    }
+        if (this.changes === 0) {
+            res.status(404).json({ message: 'Task not found or no changes made' });
+            return;
+        }
+	const updatedTaskId = id;
+	db.get('SELECT * FROM tasks WHERE id = ?', [updatedTaskId], (err, row) => {
+		if (err) { 
+			res.status(500).json({ error: err.message });
+                	return;			
+		}
+		if (!row) { /* ... not found for retrieval handling ... */ } // TODO
+		debouncedPublishUpcomingTasksState();
+		res.json({ message: 'Task updated successfully', task: processTaskRow(row) });
+	});
+    });
 });
 
 // 5. DELETE a task
-app.delete('/api/tasks/:id', async (req, res) => {
+app.delete('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
-    try {
-        const result = await db.runAsync('DELETE FROM tasks WHERE id = ?', [id]);
-        if (result.changes === 0) {
-            return res.status(404).json({ message: 'Task not found' });
+    db.run('DELETE FROM tasks WHERE id = ?', [id], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
         }
-        debouncedPublishUpcomingTasksState();
-
-        // io.emit('taskDeleted', id);
-        console.log('Emitted WebSocket event: taskDeleted for ID:', id);
-
-        res.json({ message: 'Task deleted successfully', changes: result.changes });
-    } catch (err) {
-        console.error('Error deleting task:', err.message);
-        res.status(500).json({ error: 'Failed to delete task.' });
-    }
+        if (this.changes === 0) {
+            res.status(404).json({ message: 'Task not found' });
+            return;
+        }
+	    debouncedPublishUpcomingTasksState();
+        res.json({ message: 'Task deleted successfully', changes: this.changes });
+    });
 });
 
 // Global error handlers (important for debugging)
