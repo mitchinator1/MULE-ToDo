@@ -590,10 +590,10 @@ const TaskManager = {
 		try {
 			UIManager.showThrobber('Deleting task');
 			const result = await APIManager.deleteTask(taskId);
-			if (result.message === 'Task deleted successfully' && result.task) {
-				DataManager.deleteTask(result.task);
-				UIManager.deleteTask(taskId, result.task);
-				UIManager.showMessage('Status updated successfully', 'success');
+			if (result.message === 'Task deleted successfully') {
+				DataManager.deleteTask(taskId);
+				UIManager.deleteTaskElement(taskId);
+				UIManager.showMessage('Task deleted successfully', 'success');
 			}
 		} catch (error) {
 			UIManager.showErrorMessage(error, 'deleting task');
@@ -1274,15 +1274,14 @@ const UIManager = {
 	
 	updateTaskElement: function (taskId, updatedTask) {
 		const taskElement = document.querySelector(`.task-container[data-task-id="${taskId}"]`);
-		if (!taskElement)
-			return;
+		if (!taskElement) return;
 
 		// Update title
 		const titleSpan = taskElement.querySelector('.task-title');
 		const titleInput = taskElement.querySelector('.title-edit');
 		if (titleSpan) {
 			titleSpan.textContent = updatedTask.title || 'Untitled Task';
-			titleSpan.style.display = 'inline'; // Change visibility to display
+			titleSpan.style.display = 'inline';
 			if (titleInput) {
 				titleInput.value = updatedTask.title || 'Untitled Task';
 				titleInput.style.display = 'none';
@@ -1294,7 +1293,7 @@ const UIManager = {
 		if (descriptionDiv) {
 			const description = updatedTask.description || '';
 			descriptionDiv.innerHTML = description || '<span class="placeholder">Add description...</span>';
-			descriptionDiv.style.display = 'block'; // Change visibility to display
+			descriptionDiv.style.display = 'block';
 			if (descriptionTextarea) {
 				descriptionTextarea.value = description;
 				descriptionTextarea.style.display = 'none';
@@ -1364,6 +1363,13 @@ const UIManager = {
 			// Remove recurring indicator if task is no longer recurring
 			recurringIndicator.remove();
 		}
+	},
+
+	deleteTaskElement: function (taskId) {
+		const taskElement = document.querySelector(`.task-container[data-task-id="${taskId}"]`);
+		if (!taskElement) return;
+
+		taskElement.remove();
 	},
 	
 	renderCategories: function (categories) {
