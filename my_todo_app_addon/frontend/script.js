@@ -600,7 +600,7 @@ const TaskManager = {
 		} finally {
 			UIManager.hideThrobber('Deleting task');
 		}
-	}
+	},
 	
 	async handleRecurringTask(task) {
 		const nextOccurrence = this.calculateNextOccurrence(task);
