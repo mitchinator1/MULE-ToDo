@@ -1,5 +1,3 @@
-import { io } from 'socket.io-client';
-
 class StyleManager {
     static styleSheets = new Map();
     static addStyles(id, styles, scope = '') {
