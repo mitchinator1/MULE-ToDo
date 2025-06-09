@@ -1999,25 +1999,6 @@ const FilterManager = {
 	
 };
 
-const client = mqtt.connect('ws://core-mosquitto:1884'); // Adjust port if using Mosquitto with WebSocket enabled
-
-client.on('connect', () => {
-    console.log('Connected to MQTT broker over WebSocket');
-    client.subscribe('mule/todo/task_created', (err) => {
-        if (!err) {
-            console.log('Subscribed to task updates');
-        }
-    });
-});
-
-client.on('message', (topic, message) => {
-    if (topic === 'mule/todo/task_created') {
-        const newTask = JSON.parse(message.toString());
-        // Now update your UI with this new task
-        addTaskToUI(newTask);
-    }
-});
-
 // Initialize the TaskManager
 document.addEventListener('DOMContentLoaded', () => {
     TaskManager.init().catch(error => {
