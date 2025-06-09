@@ -733,6 +733,11 @@ body {
 	color: white;
 }
 
+.btn-delete {
+	background: #a70303;
+	color: white;
+}
+
 /* Inline text editing */
 .title-edit {
 	font-weight: 600;

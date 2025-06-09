@@ -585,6 +585,22 @@ const TaskManager = {
 			UIManager.hideThrobber('Updating status');
 		}
 	},
+
+	async deleteTask(taskId) {
+		try {
+			UIManager.showThrobber('Deleting task');
+			const result = await APIManager.deleteTask(taskId);
+			if (result.message === 'Task deleted successfully' && result.task) {
+				DataManager.deleteTask(result.task);
+				UIManager.deleteTask(taskId, result.task);
+				UIManager.showMessage('Status updated successfully', 'success');
+			}
+		} catch (error) {
+			UIManager.showErrorMessage(error, 'deleting task');
+		} finally {
+			UIManager.hideThrobber('Deleting task');
+		}
+	}
 	
 	async handleRecurringTask(task) {
 		const nextOccurrence = this.calculateNextOccurrence(task);
@@ -1149,7 +1165,7 @@ const UIManager = {
 			<div class="task-item" data-task-id="${task.id}">
 				<div class="task-expand-indicator ${task.hasSubtasks ? '' : 'hidden'}" onclick="UIManager.toggleSubtasks('${task.id}', event)"></div>
 				<div class="task-content">
-	
+
 					<div class="task-header">
 						${recurringIndicator}
 						<div class="title-container">
@@ -1211,6 +1227,7 @@ const UIManager = {
 			<div class="task-actions">
 				<button class="btn btn-info btn-sm"	onclick="UIManager.showTaskForm('${task.id}')">Add</button>
 				<button class="btn btn-success btn-sm" onclick="TaskManager.updateTaskStatus(event,	'${task.id}', 'Completed')">Done</button>
+				<button class="btn btn-delete btn-sm" onclick="TaskManager.deleteTask('${task.id}')">Delete</button>
 			</div>
 		</div>
 			`;
@@ -1841,6 +1858,15 @@ const DataManager = {
 
 		if (index !== -1) {
 			this.state.tasks[index] = task;
+			this.saveState();
+		}
+	},
+
+	deleteTask: function (task) {
+		const index = this.state.tasks.findIndex(t => t.id === task.id);
+
+		if (index !== -1) {
+			this.state.tasks.splice(index, 1);
 			this.saveState();
 		}
 	},
