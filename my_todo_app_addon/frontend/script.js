@@ -1177,7 +1177,7 @@ const UIManager = {
 						${recurringIndicator}
 						<div class="title-container">
 							<span class="task-title" onclick="UIManager.editTaskTitle(event, '${task.id}')">${taskData.title}</span>
-							<input type="text" class="title-edit" value="${taskData.title}" style="display: none" onblur="TaskManager.updateTitle(event, '${task.id}')"	onkeydown="if(event.key==='Enter')this.blur(); if(event.key==='Escape')TaskManager.cancelTitleEdit(event, '${task.id}')">
+							<input type="text" class="title-edit" value="${taskData.title}" style="display: none" onblur="TaskManager.updateTitle(event, '${task.id}')"	onkeydown="if(event.key==='Enter')this.blur(); if(event.key==='Escape') UIManager.finishTitleEdit(event.target.closest('.title-container'))">
 						</div>
 	  
 						<div class="task-details">
@@ -1228,7 +1228,7 @@ const UIManager = {
 					<div class="description" onclick="UIManager.editTaskDescription(event, '${task.id}')">
 						${taskData.description || '<span class="placeholder">Add description...</span>'}
 					</div>
-					<textarea class="description-edit" style="display: none" onblur="TaskManager.updateDescription(event, '${task.id}')" onkeydown="if(event.key==='Escape')TaskManager.cancelDescriptionEdit(event, '${task.id}')">${taskData.description}</textarea>
+					<textarea class="description-edit" style="display: none" onblur="TaskManager.updateDescription(event, '${task.id}')" onkeydown="if(event.key==='Escape') UIManager.finishDescriptionEdit(event.target.closest('.description-container'))">${taskData.description}</textarea>
 				</div>
 			</div>
 			<div class="task-actions">
