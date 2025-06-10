@@ -728,12 +728,13 @@ const TaskManager = {
 		const newDescription = event.target.value.trim();
 		const container = event.target.closest('.description-container');
 		const descriptionDiv = container.querySelector('.description');
+		const oldDescription = descriptionDiv.textContent.trim();
 		// Check if there are changes
-		console.log(`New Description: ${newDescription}`);
-		console.log(`Old Description: ${descriptionDiv.textContent.trim()}`);
-		if (newDescription !== descriptionDiv.textContent.trim()) {
-			descriptionDiv.innerHTML = newDescription || '<span class="placeholder">Add description...</span>'; // Update UI immediately
-			this.updateTaskField(taskId, 'description', newDescription);
+		if (newDescription !== oldDescription) {
+			if (oldDescription !== 'Add description...') {
+				descriptionDiv.innerHTML = newDescription || '<span class="placeholder">Add description...</span>';
+				this.updateTaskField(taskId, 'description', newDescription);
+			}
 		}
 		UIManager.finishDescriptionEdit(container);
 	},
