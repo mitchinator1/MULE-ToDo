@@ -967,6 +967,12 @@ body {
 		border: 1px solid #666666;
 	}
 
+	.title-edit,
+	.description-edit {
+		background: #2f2f2f;
+		color: #f5f5f5;
+	}
+
 	.meta-value,
 	.modal h3,
 	.form-group label,
@@ -989,6 +995,12 @@ body {
 
 	.form-group .due-date:hover {
 		background: rgba(255, 255, 255, 0.15);
+	}
+
+	.form-group input {
+		background: #222222;
+		color: #f9f9f9;
+		color-scheme: dark;
 	}
 
 	.date-picker-dropdown {
@@ -1018,7 +1030,7 @@ body {
 
 		100% {
 			box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
-			background-color: #222222;
+			background-color: #292929;
 		}
 	}
 }
