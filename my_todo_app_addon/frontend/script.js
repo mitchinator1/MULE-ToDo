@@ -729,6 +729,8 @@ const TaskManager = {
 		const container = event.target.closest('.description-container');
 		const descriptionDiv = container.querySelector('.description');
 		// Check if there are changes
+		console.log(`New Description: ${newDescription}`);
+		console.log(`Old Description: ${descriptionDiv.textContent.trim()}`);
 		if (newDescription !== descriptionDiv.textContent.trim()) {
 			descriptionDiv.innerHTML = newDescription || '<span class="placeholder">Add description...</span>'; // Update UI immediately
 			this.updateTaskField(taskId, 'description', newDescription);
