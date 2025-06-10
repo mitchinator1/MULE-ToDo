@@ -390,18 +390,7 @@ body {
 	border-radius: 6px;
 }
 
-@keyframes highlightNew {
-	0% {
 
-		box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.2);
-		background-color: rgba(66, 133, 244, 0.1);
-	}
-
-	100% {
-		box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
-		background-color: #f8f9fa;
-	}
-}
 
 .task-container.highlight::before {
 	animation: highlightNew 2s ease-out forwards;
@@ -947,4 +936,89 @@ body {
 	outline: none;
 	border-color: #4285f4;
 	box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.1);
+}
+
+@media (prefer-color-scheme: dark) {
+	body {
+		background: #222222;
+	}
+
+	.toggle-filters,
+	.filter-controls,
+	.filter-select,
+	.sidebar,
+	.toggle-sidebar::before,
+	.form-group select {
+		background: #1c1c1c;
+		color: #fcfcfc;
+	}
+
+	.toggle-filters:hover {
+		background-color: #2f2f2f;
+	}
+
+	.inline-input::placeholder {
+		color: #ffffff;
+	}
+
+	.task-item {
+		background: #2f2f2f;
+		color: #f5f5f5;
+		border: 1px solid #666666;
+	}
+
+	.meta-value,
+	.modal h3,
+	.form-group label,
+	.form-group .due-date,
+	.form-group .priority {
+		color: #c1c1c1;
+	}
+
+	.modal-content {
+		background: #0f0f0f;
+	}
+
+	.form-group .priority {
+		color: #121212;
+	}
+
+	.form-group .priority:hover {
+		background: rgba(255, 255, 255, 0.95);
+	}
+
+	.form-group .due-date:hover {
+		background: rgba(255, 255, 255, 0.15);
+	}
+
+	.date-picker-dropdown {
+		background: #111111;
+		color: #c9c9c9;
+		box-shadow: 0 2px 6px rgba(255, 255, 255, 0.25);
+	}
+
+	.close-modal {
+		color: #ffffff;
+	}
+
+	.inline-input {
+		color: #f9f9f9;
+	}
+
+	.recurring-options {
+		background: #191919;
+		color: #c1c1c1;
+	}
+
+	@keyframes highlightNew {
+		0% {
+			box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.2);
+			background-color: rgba(255, 255, 255, 0.85);
+		}
+
+		100% {
+			box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
+			background-color: #222222;
+		}
+	}
 }
