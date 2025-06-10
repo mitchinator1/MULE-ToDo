@@ -144,7 +144,6 @@ function connectMqttAndStartServer() {
     // Start the Express server - THIS WAS MISSING ITS WRAPPER IN YOUR PROVIDED CODE
     const httpServer = app.listen(PORT, BIND_IP, () => {
         console.log(`Server running on ${BIND_IP}:${PORT}`);
-        console.log(`Access at: http://homeassistant.local/hassio/ingress/my_todo_app`);
         console.log(`API will be accessible via ingress`);
         console.log("SERVER.JS: HTTP server successfully listening.");
     });
