@@ -11,6 +11,8 @@ backend/todo.db
 
 # Visual Studio / IDE Files
 .vs/
+.vscode/
+.devcontainer/
 *.suo
 *.wsuo
 *.user
