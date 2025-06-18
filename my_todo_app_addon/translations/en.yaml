@@ -1,0 +1,8 @@
+configuration:
+  dark_mode:
+    name: Dark Mode
+    description: Enable dark mode
+  mqtt_username:
+    name: MQTT Username
+  mqtt_password:
+    name: MQTT Password
