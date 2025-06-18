@@ -29,7 +29,7 @@ schema:
   mqtt_broker: "str?"
   mqtt_port: "int?"
   mqtt_username: "str?"
-  mqtt_password: "str?"
+  mqtt_password: "password?"
 environment:
   PORT: "[% port_internal %]" # Node.js will listen on this port (3000)
   DATABASE_PATH: "/data/todo.db" # This is a static path

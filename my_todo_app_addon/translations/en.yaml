@@ -1,7 +1,15 @@
 configuration:
+  port_internal:
+    name: Internal Port
+    description: The internal port for the addon to listen on. Default is 3000.
   dark_mode:
     name: Dark Mode
     description: Enable dark mode
+  mqtt_broker:
+    name: MQTT Broker
+  mqtt_port:
+    name: MQTT Port
+    description: The port for the MQTT broker. Default is 1883.
   mqtt_username:
     name: MQTT Username
   mqtt_password:
