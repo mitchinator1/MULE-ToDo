@@ -23,6 +23,7 @@ options:
   mqtt_port: 1883
   mqtt_username: ""
   mqtt_password: ""
+  gemini_api_key: ""
 schema:
   port_internal: "int?"
   dark_mode: bool
@@ -30,6 +31,7 @@ schema:
   mqtt_port: "int?"
   mqtt_username: "str?"
   mqtt_password: "password?"
+  gemini_api_key: "str?"
 environment:
   PORT: "[% port_internal %]" # Node.js will listen on this port (3000)
   DATABASE_PATH: "/data/todo.db" # This is a static path
@@ -37,6 +39,7 @@ environment:
   MQTT_PORT: "[% mqtt_port %]"
   MQTT_USERNAME: "[% mqtt_username %]"
   MQTT_PASSWORD: "[% mqtt_password %]"
+  GEMINI_API_KEY: "[% gemini_api_key %]"
 build:
   context: .
   dockerfile: Dockerfile
