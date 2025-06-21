@@ -15,5 +15,5 @@ configuration:
   mqtt_password:
     name: MQTT Password
   gemini_api_key:
-    name: Gemini API GEMINI_API_KEY
+    name: Gemini API Key
     description: Your Gemini API key for AI features. Optional.
