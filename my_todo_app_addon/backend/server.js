@@ -267,7 +267,7 @@ function publishUpcomingTasksState() {
         return;
     }
 
-    db.all(`SELECT id, title, description, dueDate, priority, status, category, progress FROM tasks WHERE completed = 0 AND dueDate IS NOT NULL AND dueDate != ""`, [], (err, rows) => {
+    db.all(`SELECT id, title, description, created_at, due_date, priority, status, category_id FROM tasks WHERE completed = 0 AND due_date IS NOT NULL AND due_date != ""`, [], (err, rows) => {
         if (err) {
             console.error('Error fetching tasks for MQTT state:', err.message);
             mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, "0", { retain: false });
@@ -298,7 +298,7 @@ function publishUpcomingTasksState() {
                     });
                 }
             } catch (dateError) {
-                console.error(`Error parsing dueDate for task ${task.id}: ${task.dueDate}, Error: ${dateError.message}`);
+                console.error(`Error parsing due_date for task ${task.id}: ${task.dueDate}, Error: ${dateError.message}`);
             }
         });
 
