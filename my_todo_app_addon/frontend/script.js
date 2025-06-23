@@ -206,32 +206,32 @@ const MULE = (() => {
 				box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 				z-index: 1000;
 			}
-	
+
 			/* Positioning styles for inline mode */
-			.throbber-container-inline[data-position="top-left"] { 
+			.throbber-container-inline[data-position="top-left"] {
 				top: 16px; left: 16px;
 			}
-	
-			.throbber-container-inline[data-position="top-middle"] { 
+
+			.throbber-container-inline[data-position="top-middle"] {
 				top: 16px; left: 50%; transform: translateX(-50%);
 			}
-	
-			.throbber-container-inline[data-position="top-right"] { 
+
+			.throbber-container-inline[data-position="top-right"] {
 				top: 16px; right: 16px;
 			}
-	
-			.throbber-container-inline[data-position="bottom-left"] { 
+
+			.throbber-container-inline[data-position="bottom-left"] {
 				bottom: 16px; left: 16px;
 			}
-	
-			.throbber-container-inline[data-position="bottom-middle"] { 
+
+			.throbber-container-inline[data-position="bottom-middle"] {
 				bottom: 16px; left: 50%; transform: translateX(-50%);
 			}
-	
-			.throbber-container-inline[data-position="bottom-right"] { 
+
+			.throbber-container-inline[data-position="bottom-right"] {
 				bottom: 16px; right: 16px;
 			}
-	
+
 			.throbber-container-inline .throbber {
 				position: relative;
 				top: initial;
@@ -256,7 +256,7 @@ const MULE = (() => {
 				font-size: 12px;
 				opacity: 0.8;
 			}
-			
+
 			/* Rotate Animation */
 			.throbber-rotate {
 				animation: throbber-smoothRotate calc(var(--uib-speed) * 1.8) linear infinite;
@@ -280,27 +280,27 @@ const MULE = (() => {
 				background-color: var(--uib-color);
 				transition: background-color 0.3s ease;
 			}
-			
-			.throbber-rotate .throbber-dot:nth-child(2) { 
+
+			.throbber-rotate .throbber-dot:nth-child(2) {
 				animation-delay: calc(var(--uib-speed) * -0.835 * 0.5);
 			}
-	
-			.throbber-rotate .throbber-dot:nth-child(3) { 
+
+			.throbber-rotate .throbber-dot:nth-child(3) {
 				animation-delay: calc(var(--uib-speed) * -0.668 * 0.5);
 			}
-	
+
 			.throbber-rotate .throbber-dot:nth-child(4) {
 				animation-delay: calc(var(--uib-speed) * -0.501 * 0.5);
 			}
-	
+
 			.throbber-rotate .throbber-dot:nth-child(5) {
 				animation-delay: calc(var(--uib-speed) * -0.334 * 0.5);
 			}
-	
+
 			.throbber-rotate .throbber-dot:nth-child(6) {
 				animation-delay: calc(var(--uib-speed) * -0.167 * 0.5);
 			}
-			
+
 			@keyframes throbber-rotate {
 				0% { transform: rotate(0deg); }
 				65%, 100% { transform: rotate(360deg); }
@@ -309,7 +309,7 @@ const MULE = (() => {
 				0% { transform: rotate(0deg); }
 				100% { transform: rotate(360deg); }
 			}
-			
+
 			/* Pulse Animation */
 			.throbber-pulse {
 			width: auto;
@@ -326,7 +326,7 @@ const MULE = (() => {
 			background-color: var(--uib-color);
 			animation: pulse-animation var(--uib-speed) ease-in-out infinite;
 			}
-	
+
 			@keyframes pulse-animation {
 			0%, 100% { transform: scale(0.5); opacity: 0.3; }
 			50% { transform: scale(1); opacity: 1; }
@@ -403,7 +403,7 @@ const TaskManager = {
 			years: 1
 		}
 	},
-	
+
 	async init() {
 		try {
 			UIManager.init();
@@ -428,7 +428,7 @@ const TaskManager = {
 			UIManager.showErrorMessage(error, 'initializing application');
 		}
 	},
-	
+
 	setupEventListeners() {
 		UIManager.elements.formElement.addEventListener('submit', this.handleFormSubmit.bind(this));
 		UIManager.elements.addTaskButton.addEventListener('click', () => UIManager.showTaskForm());
@@ -438,7 +438,7 @@ const TaskManager = {
 			}
 		});
 	},
-	
+
 	async loadTasks() {
 		try {
 			UIManager.showThrobber('Loading tasks');
@@ -455,12 +455,12 @@ const TaskManager = {
 			UIManager.hideThrobber('Loading tasks');
 		}
 	},
-	
+
 	renderTasks() {
 		const filteredTasks = DataManager.getFilteredAndSortedTasks();
 		UIManager.renderTaskList(filteredTasks);
 	},
-	
+
 	async handleFormSubmit(event) {
 		event.preventDefault();
 		const formData = new FormData(event.target);
@@ -481,8 +481,7 @@ const TaskManager = {
 			priority: formData.get('priority') || 'Low',
 			status: 'Not Started',
 			parentTaskId: formData.get('parentTaskId') || '',
-			category: formData.get('category') || '',
-			progress: 0
+			categoryId: formData.get('category') || '',
 		};
 
 		// Only add recurring data if a pattern is selected
@@ -500,18 +499,20 @@ const TaskManager = {
 
 			if (isEditing) {
 				const existingTask = DataManager.getTaskById(taskId);
-				
+
 				const changedFields = {};
-				if (existingTask.title !== taskData.title) {
-					changedFields.title = taskData.title;
+
+				if (existingTask.title !== taskData.title) changedFields.title = taskData.title;
+				if (existingTask.description !== taskData.description) changedFields.description = taskData.description;
+				if (existingTask.dueDate !== taskData.dueDate) changedFields.dueDate = taskData.dueDate;
+				if (existingTask.priority !== taskData.priority) changedFields.priority = taskData.priority;
+				if (existingTask.status !== taskData.status) changedFields.status = taskData.status;
+				if (existingTask.parentTaskId !== taskData.parentTaskId) changedFields.parentTaskId = taskData.parentTaskId;
+				if (existingTask.categoryId !== taskData.categoryId) changedFields.categoryId = taskData.categoryId;
+
+				if (JSON.stringify(existingTask.recurring) !== JSON.stringify(taskData.recurring)) {
+					changedFields.recurring = taskData.recurring;
 				}
-				if (existingTask.description !== taskData.description) {
-					changedFields.description = taskData.description;
-				}
-				
-				// Add other fields here if you extend your backend table/API
-				// if (existingTask.description !== taskData.description) { changedFields.description = taskData.description; }
-				// etc.
 
 				if (Object.keys(changedFields).length === 0) {
 					UIManager.showMessage('No changes detected', 'info');
@@ -519,7 +520,6 @@ const TaskManager = {
 					return;
 				}
 
-				// Call APIManager.updateTask directly with taskId and the changedFields object
 				result = await APIManager.updateTask(taskId, changedFields);
 
 				if (result.message === 'Task updated successfully' && result.task) {
@@ -553,7 +553,7 @@ const TaskManager = {
 			}
 		}
 	},
-	
+
 	getChangedFields(existingTask, newTaskData) {
 		const changedFields = {};
 		for (const [key, value] of Object.entries(newTaskData)) {
@@ -563,7 +563,7 @@ const TaskManager = {
 		}
 		return changedFields;
 	},
-	
+
 	async updateTaskStatus(event, taskId, status) {
 		try {
 			UIManager.showThrobber('Updating status');
@@ -601,21 +601,21 @@ const TaskManager = {
 			UIManager.hideThrobber('Deleting task');
 		}
 	},
-	
+
 	async handleRecurringTask(task) {
 		const nextOccurrence = this.calculateNextOccurrence(task);
 		if (nextOccurrence) {
 			await this.createNextRecurringTask(task, nextOccurrence);
 		}
 	},
-	
+
 	calculateNextOccurrence(task) {
 		if (!task.recurring || JSON.stringify(task.recurring) === "{}") return null;
-		
+
 		const lastDate = new Date(task.dueDate);
 		const pattern = task.recurring;
 		let nextDate = new Date(lastDate);
-		
+
 		switch (pattern.pattern) {
 			case 'daily':
 				nextDate.setDate(lastDate.getDate() + 1);
@@ -668,7 +668,7 @@ const TaskManager = {
 		}
 		return nextDate;
 	},
-	
+
 	async createNextRecurringTask(task, nextDate) {
 		const nextTask = {
 			...task,
@@ -687,7 +687,7 @@ const TaskManager = {
 			UIManager.showErrorMessage(error, 'creating next recurring task');
 		}
 	},
-								
+
 	async updateTaskField(taskId, field, value) {
 		try {
 			UIManager.showThrobber(`Updating ${field}`);
@@ -710,7 +710,7 @@ const TaskManager = {
 			UIManager.hideThrobber(`Updating ${field}`);
 		}
 	},
-								
+
 	updateTitle(event, taskId) {
 		const newTitle = event.target.value.trim();
 		if (newTitle) {
@@ -723,7 +723,7 @@ const TaskManager = {
 		}
 		UIManager.finishTitleEdit(event.target.closest('.title-container'));
 	},
-	
+
 	updateDescription(event, taskId) {
 		const newDescription = event.target.value.trim();
 		const container = event.target.closest('.description-container');
@@ -738,7 +738,7 @@ const TaskManager = {
 		}
 		UIManager.finishDescriptionEdit(container);
 	},
-	
+
 	updateDueDate(event, taskId) {
 		event.stopPropagation();
 		const newDueDate = event.target.value;
@@ -751,7 +751,7 @@ const TaskManager = {
 			this.updateTaskField(taskId, 'dueDate', newDueDate);
 		}
 	},
-	
+
 	updatePriority(event, taskId, priority) {
 		event.stopPropagation(); // Prevent the event from bubbling up
 		if (taskId === 'modal') {
@@ -763,7 +763,7 @@ const TaskManager = {
 			this.updateTaskField(taskId, 'priority', priority);
 		}
 	},
-	
+
 	async handleRecurringEditSubmit(e) {
 		e.preventDefault();
 		const taskId = e.target.elements.editRecurringTaskId.value;
@@ -784,7 +784,7 @@ const TaskManager = {
 			UIManager.hideThrobber('Updating recurring pattern');
 		}
 	},
-	
+
 	getRecurringPattern(prefix = '') {
 		const patternId = prefix ? `${prefix}RecurringPattern` : 'recurringPattern';
 		const customIntervalId = prefix ? `${prefix}CustomInterval` : 'customInterval';
@@ -825,15 +825,15 @@ const TaskManager = {
 		}
 		return recurringData;
 	},
-	
+
 	selectCategory(category) {
 		DataManager.setCurrentCategory(category);
 		this.renderTasks();
 		UIManager.updateCategorySelection(category);
 	},
-	
+
 };
-							
+
 const INGRESS_PATH_PREFIX = window.location.pathname.replace(/\/$/, '');
 const API_BASE_URL = `${INGRESS_PATH_PREFIX}/api`;
 
@@ -873,7 +873,21 @@ const APIManager = {
         return this._fetch(`${API_BASE_URL}/tasks`, {
             method: 'GET'
         });
-    },
+	},
+
+	getTaskHistory: async function (taskId) {
+		console.log(`Fetching history for task ${taskId}...`);
+		return this._fetch(`${API_BASE_URL}/tasks/${taskId}/history`, {
+			method: 'GET'
+		});
+	},
+
+	undoLastChange: async function (taskId) {
+		console.log(`Undoing last change for task ${taskId}...`);
+		return this._fetch(`${API_BASE_URL}/tasks/${taskId}/undo`, {
+			method: 'POST'
+		});
+	},
 
     addTask: async function (taskData) {
         console.log('Adding task:', taskData);
@@ -907,7 +921,7 @@ const APIManager = {
 
 const UIManager = {
 	elements: {},
-	
+
 	init: function () {
 		// Initialize all element references
 		this.elements = {
@@ -926,7 +940,7 @@ const UIManager = {
 			throw new Error(`Missing required elements: ${missingElements.join(', ')}`);
 		}
 	},
-	
+
 	setupRecurringControls: function (handlers) {
 		const patternSelect = document.getElementById('recurringPattern');
 		const recurringOptions = document.querySelector('.recurring-options');
@@ -965,7 +979,7 @@ const UIManager = {
 		}
 
 	},
-	
+
 	setupRecurringEditControls: function (handlers) {
 		const patternSelect = document.getElementById('editRecurringPattern');
 		const recurringOptionsDiv = document.querySelector('#recurringEditModal	.recurring-options');
@@ -995,7 +1009,7 @@ const UIManager = {
 			});
 		}
 	},
-	
+
 	showThrobber: function (context) {
 		MULE.Throbber.show(context, {
 			mode: 'inline',
@@ -1005,7 +1019,7 @@ const UIManager = {
 			message: `${context}...`
 		});
 	},
-	
+
 	hideThrobber: function (context) {
 		MULE.Throbber.hide(context);
 	},
@@ -1015,20 +1029,20 @@ const UIManager = {
 			type: type
 		});
 	},
-	
+
 	showErrorMessage: function (message, context) {
 		MULE.Snackbar.show(`Error ${context.toLowerCase()}: ${message}`, {
 			type: 'error'
 		});
 		console.error(`Error ${context.toLowerCase()}:`, message);
 	},
-	
+
 	showSuccessMessage: function (message) {
 		MULE.Snackbar.show(message, {
 			type: 'success'
 		});
 	},
-	
+
 	showTaskForm: function (parentId = null) {
 		const formTitle = document.querySelector('#taskForm h3');
 		const submitButton = document.getElementById('taskFormSubmit');
@@ -1068,7 +1082,7 @@ const UIManager = {
 			taskNameInput.focus();
 		}
 	},
-	
+
 	hideTaskForm: function () {
 		this.elements.taskForm.style.display = 'none';
 		this.elements.formElement.reset();
@@ -1095,7 +1109,7 @@ const UIManager = {
 		if (recurringOptions)
 			recurringOptions.style.display = 'none';
 	},
-	
+
 	showRecurringEditForm: function (taskId) {
 		const taskElement = document.querySelector(`.task-container[data-task-id="${taskId}"]`);
 		if (!taskElement) {
@@ -1148,11 +1162,11 @@ const UIManager = {
 		}
 		document.getElementById('recurringEditModal').style.display = 'block';
 	},
-	
+
 	hideRecurringEditForm: function () {
 		document.getElementById('recurringEditModal').style.display = 'none';
 	},
-	
+
 	createTaskHTML: function (task) {
 		const taskData = {
 			title: task.title || 'Untitled Task',
@@ -1179,7 +1193,7 @@ const UIManager = {
 							<span class="task-title" onclick="UIManager.editTaskTitle(event, '${task.id}')">${taskData.title}</span>
 							<input type="text" class="title-edit" value="${taskData.title}" style="display: none" onblur="TaskManager.updateTitle(event, '${task.id}')"	onkeydown="if(event.key==='Enter')this.blur(); if(event.key==='Escape') UIManager.finishTitleEdit(event.target.closest('.title-container'))">
 						</div>
-	  
+
 						<div class="task-details">
 							<div class="task-meta">
 								<span class="meta-item due-date-container">
@@ -1240,7 +1254,7 @@ const UIManager = {
 			`;
 		return html;
 	},
-	
+
 	toggleSubtasks: function (taskId, event) {
 		if (event) event.stopPropagation();
 
@@ -1278,7 +1292,7 @@ const UIManager = {
 			}
 		}
 	},
-	
+
 	updateTaskElement: function (taskId, updatedTask) {
 		const taskElement = document.querySelector(`.task-container[data-task-id="${taskId}"]`);
 		if (!taskElement) return;
@@ -1378,7 +1392,7 @@ const UIManager = {
 
 		taskElement.remove();
 	},
-	
+
 	renderCategories: function (categories) {
 		const categoryList = document.getElementById('categoryList');
 		if (!categoryList) {
@@ -1397,13 +1411,13 @@ const UIManager = {
 			categoryList.appendChild(categoryItem);
 		});
 	},
-	
+
 	updateCategorySelection: function (category) {
 		document.querySelectorAll('.category-item').forEach(item => {
 			item.classList.toggle('active', item.textContent.trim() === category);
 		});
 	},
-	
+
 	setupSidebar: function () {
 		const toggleButton = document.getElementById('toggleSidebar');
 		const sidebar = document.getElementById('sidebar');
@@ -1412,7 +1426,7 @@ const UIManager = {
 			sidebar.classList.toggle('collapsed');
 		};
 	},
-	
+
 	renderTaskList: function (tasks) {
 		if (!this.elements.taskList) {
 			console.error('Task list element not found');
@@ -1452,7 +1466,7 @@ const UIManager = {
 			}
 		});
 	},
-	
+
 	renderSubtasks: function (parentId, taskMap, parentElement) {
 		// Create subtasks container if the parent has subtasks
 		const parentTask = taskMap.get(parentId);
@@ -1474,7 +1488,7 @@ const UIManager = {
 			}
 		});
 	},
-	
+
 	calculateContainerHeight: function (container) {
 		// Adding 1 and remove 1 on subtasks seems to even out, assuming due to borders.
 		let totalHeight = 0;
@@ -1497,7 +1511,7 @@ const UIManager = {
 		});
 		return Math.ceil(totalHeight + 1); // Round up to account for potential fractional pixels
 	},
-	
+
 	updateParentContainers: function (container) {
 		let parent = container.parentElement.closest('.subtasks-container');
 		while (parent && parent.classList.contains('expanded')) {
@@ -1506,7 +1520,7 @@ const UIManager = {
 			parent = parent.parentElement.closest('.subtasks-container');
 		}
 	},
-	
+
 	addTaskToUI: function (task) {
 		console.log('Adding task to UI:', task);
 		const taskElement = document.createElement('div');
@@ -1554,11 +1568,11 @@ const UIManager = {
 			taskItem.style.animation = '';
 		});
 	},
-	
+
 	getRecurringDescription: function (recurring) {
 		if (!recurring)	return '';
 		let recurringData = recurring;
-		
+
 		if (typeof recurring === 'string') {
 			try {
 				recurringData = JSON.parse(recurring);
@@ -1567,7 +1581,7 @@ const UIManager = {
 				return 'Recurring task';
 			}
 		}
-		
+
 		let description = 'Repeats ';
 		switch (recurringData.pattern) {
 		case 'daily':
@@ -1598,7 +1612,7 @@ const UIManager = {
 		default:
 			description += 'with unknown pattern';
 		}
-		
+
 		if (recurringData.end) {
 			if (recurringData.end.type === 'after') {
 				description += `, ${recurringData.end.value} times`;
@@ -1606,10 +1620,10 @@ const UIManager = {
 				description += `, until ${recurringData.end.value}`;
 			}
 		}
-		
+
 		return description;
 	},
-	
+
 	editTaskTitle: function (event, taskId) {
 		const titleSpan = event.currentTarget;
 		const container = titleSpan.closest('.title-container');
@@ -1618,7 +1632,7 @@ const UIManager = {
 		input.style.display = 'block';
 		input.focus();
 	},
-	
+
 	finishTitleEdit: function (container) {
 		const titleSpan = container.querySelector('.task-title');
 		const input = container.querySelector('.title-edit');
@@ -1626,7 +1640,7 @@ const UIManager = {
 		input.style.display = 'none';
 		titleSpan.style.visibility = 'visible';
 	},
-	
+
 	editTaskDescription: function (event, taskId) {
 		const descriptionDiv = event.currentTarget;
 		const container = descriptionDiv.closest('.description-container');
@@ -1640,14 +1654,14 @@ const UIManager = {
 			this.style.height = `${this.scrollHeight}px`;
 		});
 	},
-	
+
 	finishDescriptionEdit: function (container) {
 		const descriptionDiv = container.querySelector('.description');
 		const textarea = container.querySelector('.description-edit');
 		textarea.style.display = 'none';
 		descriptionDiv.style.visibility = 'visible';
 	},
-	
+
 	editTaskDueDate: function (event, taskId) {
 		const container = taskId === 'modal' ?
 			event.currentTarget.closest('.due-date-container') :
@@ -1658,7 +1672,7 @@ const UIManager = {
 			if (d !== dropdown)
 				d.style.display = 'none';
 		});
-		
+
 		dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
 		if (dropdown.style.display === 'block') {
 
@@ -1673,7 +1687,7 @@ const UIManager = {
 			}, 0);
 		}
 	},
-	
+
 	setQuickDate: function (event, taskId, type) {
 		event.stopPropagation();
 		const now = new Date();
@@ -1709,7 +1723,7 @@ const UIManager = {
 			this.updateTaskField(taskId, 'dueDate', '');
 		}
 	},
-	
+
 	updateDueDateDisplay: function (taskId, newDate) {
 		const isModal = taskId === 'modal';
 		const container = isModal ?
@@ -1730,7 +1744,7 @@ const UIManager = {
 		// Always close the dropdown after selection
 		dropdown.style.display = 'none';
 	},
-	
+
 	togglePriorityDropdown: function (event, taskId) {
 		event.stopPropagation();
 		const container = taskId === 'modal'
@@ -1761,7 +1775,7 @@ const UIManager = {
 			}, 0);
 		}
 	},
-	
+
 	updatePriorityDisplay: function (taskId, priority) {
 		const container = taskId === 'modal'
 			 ? document.querySelector('#taskForm .priority-container')
@@ -1789,7 +1803,7 @@ const UIManager = {
 			}
 		}
 	},
-	
+
 	toggleFilters: function () {
 		const filterContainer = document.getElementById('filterContainer');
 		const toggleButton = document.getElementById('toggleFilters');
@@ -1797,7 +1811,7 @@ const UIManager = {
 		toggleButton.textContent = filterContainer.classList.contains('expanded') ? 'Filters ▲' :
 			'Filters ▼';
 	},
-	
+
 };
 
 const DataManager = {
@@ -1812,15 +1826,15 @@ const DataManager = {
 		},
 		currentSort: 'dueDate-asc'
 	},
-	
+
 	init: function () {
 		this.loadState();
 	},
-	
+
 	saveState: function () {
 		//localStorage.setItem('taskManagerState', JSON.stringify(this.state));
 	},
-	
+
 	loadState: function () {
 		const savedState = null; //localStorage.getItem('taskManagerState');
 
@@ -1836,7 +1850,7 @@ const DataManager = {
 			}
 		}
 	},
-	
+
 	setState: function (newState) {
 		this.state = {
 			...this.state,
@@ -1844,28 +1858,28 @@ const DataManager = {
 		};
 		this.saveState(); // Save after state update
 	},
-	
+
 	setTasks: function (tasks) {
 		this.state.tasks = Array.isArray(tasks) ? tasks : [];
 		this.saveState();
 	},
-	
+
 	addTask: function (task) {
 		this.state.tasks.push(task);
 		this.saveState();
 	},
-	
+
 	removeTask: function (taskId) {
 		const index = this.state.tasks.findIndex(t => t.id === taskId);
 		if (index !== -1) {
 			this.state.tasks.splice(index, 1);
 		}
 	},
-	
+
 	getTaskById(taskId) {
 		return this.state.tasks.find(task => task.id === taskId);
 	},
-	
+
 	updateTask: function (task) {
 		const index = this.state.tasks.findIndex(t => t.id === task.id);
 
@@ -1883,14 +1897,14 @@ const DataManager = {
 			this.saveState();
 		}
 	},
-	
+
 	getFilteredAndSortedTasks: function () {
 		const tasks = Array.isArray(this.state.tasks) ? this.state.tasks : [];
 		let filteredTasks = this.filterTasks(tasks);
 		const sortedTasks = this.sortTasks(filteredTasks);
 		return sortedTasks;
 	},
-	
+
 	filterTasks: function (tasks) {
 		// Add safety check
 		if (!Array.isArray(tasks)) {
@@ -1941,7 +1955,7 @@ const DataManager = {
 			return true;
 		});
 	},
-	
+
 	updateFilters: function (filters) {
 		this.state.currentFilters = {
 			...this.state.currentFilters,
@@ -1952,7 +1966,7 @@ const DataManager = {
 		}
 		this.saveState();
 	},
-	
+
 	sortTasks: function (tasks) {
 		const [field, direction] = this.state.currentSort.split('-');
 		return [...tasks].sort((a, b) => {
@@ -1993,20 +2007,20 @@ const DataManager = {
 			return direction === 'desc' ? -comparison : comparison;
 		});
 	},
-	
+
 	setCurrentCategory: function (category) {
 		this.state.currentCategory = category;
 		this.saveState();
 	},
 };
-	
+
 const FilterManager = {
 	filters: {
 		status: ['all', 'active', 'completed'],
 		priority: ['all', 'High', 'Medium', 'Low'],
 		dueDate: ['all', 'today', 'week', 'overdue']
 	},
-	
+
 	setupFilters: function () {
 		const statusFilter = document.getElementById('statusFilter');
 		const priorityFilter = document.getElementById('priorityFilter');
@@ -2030,12 +2044,12 @@ const FilterManager = {
 			});
 		});
 	},
-	
+
 	applyFilters(filters) {
 		DataManager.state.currentFilters = filters;
 		TaskManager.renderTasks();
 	},
-	
+
 };
 
 // Initialize the TaskManager

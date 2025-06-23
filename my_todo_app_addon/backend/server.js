@@ -332,7 +332,7 @@ const debouncedPublishUpcomingTasksState = debounce(publishUpcomingTasksState, 5
 
 app.use(express.static('/app/frontend'));
 
-// 1. GET all tasks
+// GET all tasks
 app.get('/api/tasks', (req, res) => {
     db.all('SELECT * FROM tasks', [], (err, rows) => {
         if (err) {
@@ -343,7 +343,7 @@ app.get('/api/tasks', (req, res) => {
     });
 });
 
-// 2. GET a single task by ID
+// GET a single task by ID
 app.get('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
     db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, row) => {
@@ -356,6 +356,25 @@ app.get('/api/tasks/:id', (req, res) => {
             return;
         }
         res.json(processTaskRow(row));
+    });
+});
+
+// GET history of a single task by ID
+app.get('/api/tasks/:id/history', (req, res) => {
+    const { id } = req.params;
+
+    db.all(`
+        SELECT id, field_changed, old_value, new_value, changed_at
+        FROM task_history
+        WHERE task_id = ?
+        ORDER BY changed_at DESC
+    `, [id], (err, rows) => {
+        if (err) {
+            console.error(`Error fetching history for task ${id}:`, err.message);
+            return res.status(500).json({ error: 'Failed to retrieve task history' });
+        }
+
+        res.json(rows);
     });
 });
 
