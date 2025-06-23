@@ -518,6 +518,26 @@ body {
 	gap: 8px;
 }
 
+.form-group .weekly-days {
+	margin-top: 8px;
+}
+
+.weekday-options {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	padding: 4px;
+}
+
+.weekday-options input {
+	width: revert;
+	cursor: pointer;
+}
+
+.weekday-options label {
+	margin-right: 20px;
+	cursor: pointer;
+}
+
 /* Title styling */
 .title-style {
 	font-weight: 600;

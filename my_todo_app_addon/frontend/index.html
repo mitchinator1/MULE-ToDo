@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>To-Do List</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
     <div id="sidebar" class="sidebar collapsed">
@@ -18,7 +18,7 @@
     </div>
     <div id="mainContent" class="main-content">
         <div id="filterContainer" class="filter-container collapsed">
-            <button id="toggleFilters" class="toggle-filters" onclick="UIManager.toggleFilters()">Filters ▼</button>
+            <button id="toggleFilters" class="toggle-filters">Filters ▼</button>
             <div class="filter-controls">
                 <select id="statusFilter" class="filter-select">
                     <option value="active">Active</option>
@@ -53,7 +53,7 @@
     <!-- Task Modal (Add/Edit) -->
     <div id="taskForm" class="modal">
         <div class="modal-content">
-            <span class="close-modal" onclick="UIManager.hideTaskForm()">&times;</span>
+            <span class="close-modal" id="taskModalClose">&times;</span>
             <h3>New Task</h3>
             <form id="taskFormElement">
                 <input type="hidden" id="taskId" name="taskId">
@@ -67,30 +67,30 @@
                 <div class="form-row">
                     <div class="form-group due-date-container">
                         <label for="dueDate">Due Date</label>
-                        <div class="due-date" onclick="UIManager.editTaskDueDate(event, 'modal')">
+                        <div id="openDueDatePicker" class="due-date">
                             <span id="modalDueDateDisplay">None</span>
                         </div>
                         <div class="date-picker-dropdown" style="display: none;">
                             <div class="date-picker-header">
-                                <span class="clear-date" onclick="UIManager.clearDueDate(event, 'modal')">Clear</span>
+                                <span id="quickDateClear" class="clear-date">Clear</span>
                                 <span class="quick-dates">
-                                    <span onclick="UIManager.setQuickDate(event, 'modal', 'today')">Today</span>
-                                    <span onclick="UIManager.setQuickDate(event, 'modal', 'tomorrow')">Tomorrow</span>
-                                    <span onclick="UIManager.setQuickDate(event, 'modal', 'nextWeek')">Next Week</span>
+                                    <span id="quickDateToday">Today</span>
+                                    <span id="quickDateTomorrow">Tomorrow</span>
+                                    <span id="quickDateNextWeek">Next Week</span>
                                 </span>
                             </div>
-                            <input type="date" id="dueDate" name="dueDate" class="date-input" onchange="TaskManager.updateDueDate(event, 'modal')" onclick="event.stopPropagation()">
+                            <input type="date" id="dueDate" name="dueDate" class="date-input">
                         </div>
                     </div>
                     <div class="form-group priority-container">
                         <label for="priority">Priority</label>
-                        <div class="priority priority-Medium" onclick="UIManager.togglePriorityDropdown(event, 'modal')">
+                        <div id="openPriorityPicker" class="priority priority-Medium">
                             <span id="modalPriorityDisplay">Medium</span>
                         </div>
                         <div class="priority-dropdown">
-                            <div class="priority-option priority-Low" onclick="TaskManager.updatePriority(event, 'modal', 'Low')">Low</div>
-                            <div class="priority-option priority-Medium" onclick="TaskManager.updatePriority(event, 'modal', 'Medium')">Medium</div>
-                            <div class="priority-option priority-High" onclick="TaskManager.updatePriority(event, 'modal', 'High')">High</div>
+                            <div class="priority-option priority-Low">Low</div>
+                            <div class="priority-option priority-Medium">Medium</div>
+                            <div class="priority-option priority-High">High</div>
                         </div>
                         <input type="hidden" id="priorityHidden" name="priority" value="Medium">
                     </div>
@@ -159,7 +159,7 @@
     <!-- Recurring Pattern Modal -->
     <div id="recurringEditModal" class="modal">
         <div class="modal-content">
-            <span class="close-modal" onclick="UIManager.hideRecurringEditForm()">&times;</span>
+            <span class="close-modal" id="recurringModalClose">&times;</span>
             <h3>Edit Recurring Pattern</h3>
             <form id="recurringEditForm">
                 <input type="hidden" id="editRecurringTaskId">
@@ -175,6 +175,22 @@
                         <option value="yearly">Yearly</option>
                         <option value="custom">Custom...</option>
                     </select>
+                    <div class="form-group weekly-days" style="display: none;">
+                        <label>Repeat on</label>
+                        <div class="weekday-options">
+                            <label><input type="checkbox" class="weekday-checkbox" value="MO"> Mon</label>
+                            <label><input type="checkbox" class="weekday-checkbox" value="TU"> Tue</label>
+                            <label><input type="checkbox" class="weekday-checkbox" value="WE"> Wed</label>
+                            <label><input type="checkbox" class="weekday-checkbox" value="TH"> Thu</label>
+                            <label><input type="checkbox" class="weekday-checkbox" value="FR"> Fri</label>
+                            <label><input type="checkbox" class="weekday-checkbox" value="SA"> Sat</label>
+                            <label><input type="checkbox" class="weekday-checkbox" value="SU"> Sun</label>
+                        </div>
+                    </div>
+                    <div class="form-group monthly-day" style="display: none;">
+                        <label for="editByMonthDay">Day of month</label>
+                        <input type="number" id="editByMonthDay" min="1" max="31">
+                    </div>
                 </div>
                 <div class="recurring-options">
                     <div class="form-row">
@@ -220,6 +236,6 @@
             </form>
         </div>
     </div>
-    <script src="script.js"></script>
+    <script type="module" src="./js/main.js"></script>
 </body>
 </html>

@@ -118,11 +118,13 @@ const db = new sqlite3.Database('/data/todo.db', (err) => {
                 by_month_day TEXT DEFAULT NULL,
                 start_date TEXT NOT NULL,
                 end_date TEXT DEFAULT NULL,
+                end_type TEXT DEFAULT 'never',
+                end_after_occurrences INTEGER DEFAULT NULL,
                 FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
             )
         `);
 
-        // (Optional) Task History
+        // Task History
         db.run(`
             CREATE TABLE IF NOT EXISTS task_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -176,25 +178,48 @@ function logTaskHistory(taskId, field, oldValue, newValue) {
 }
 
 const processTaskRow = (row) => {
-    const mappedRow = {};
+	const mappedRow = {};
 
-    for (const key in row) {
-        const frontendKey = reverseFieldMap[key] || key;
-        mappedRow[frontendKey] = row[key];
-    }
+	for (const key in row) {
+		const frontendKey = reverseFieldMap[key] || key;
+		mappedRow[frontendKey] = row[key];
+	}
 
-    // Ensure recurring is parsed
-    if (mappedRow.recurring) {
-        try {
-            mappedRow.recurring = JSON.parse(mappedRow.recurring);
-        } catch {
-            mappedRow.recurring = {};
-        }
-    } else {
-        mappedRow.recurring = {};
-    }
+	// Convert recurring fields into nested structure
+	const {
+		frequency,
+		interval,
+		by_day,
+		by_month_day,
+		recurring_start_date,
+		recurring_end_date,
+		recurring_end_type,
+		recurring_end_after_occurrences
+	} = row;
 
-    return mappedRow;
+	const hasRecurring =
+		frequency || interval || by_day || by_month_day || recurring_start_date || recurring_end_date || recurring_end_type;
+
+	if (hasRecurring) {
+		const recurring = {
+			frequency: frequency || null,
+			interval: interval || null,
+			by_day: by_day || null,
+			by_month_day: by_month_day || null,
+			start_date: recurring_start_date || null,
+            end: {
+                date: recurring_end_date || null,
+				type: recurring_end_type || 'never',
+                after_occurrences: recurring_end_after_occurrences || null,
+			}
+		};
+
+		mappedRow.recurring = recurring;
+	} else {
+		mappedRow.recurring = null;
+	}
+
+	return mappedRow;
 };
 
 function debounce(fn, delay) {
@@ -335,29 +360,80 @@ app.use(express.static('/app/frontend'));
 
 // GET all tasks
 app.get('/api/tasks', (req, res) => {
-    db.all('SELECT * FROM tasks', [], (err, rows) => {
+    const sql = `
+      SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
+             recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
+             recurring_rules.end_date AS recurring_end_date, recurring_rules.end_type AS recurring_end_type,
+            recurring_rules.end_after_occurrences AS recurring_end_after_occurrences
+      FROM tasks
+      LEFT JOIN recurring_rules ON tasks.id = recurring_rules.task_id
+    `;
+
+    db.all(sql, [], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
         }
-        res.json(rows.map(processTaskRow));
+
+        // Map rows to add recurring objects
+        const processedTasks = rows.map(row => {
+            const processed = processTaskRow(row)
+
+            // Clean up flattened join columns
+            delete row.frequency;
+            delete row.interval;
+            delete row.by_day;
+            delete row.by_month_day;
+            delete row.recurring_start_date;
+            delete row.recurring_end_date;
+            delete row.recurring_end_type;
+            delete row.recurring_end_after_occurrences;
+
+            return processed;
+        });
+
+        res.json(processedTasks);
     });
 });
 
 // GET a single task by ID
 app.get('/api/tasks/:id', (req, res) => {
-    const { id } = req.params;
-    db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
+	const { id } = req.params;
+
+	const sql = `
+        SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
+                recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
+                recurring_rules.end_date AS recurring_end_date, recurring_rules.end_type AS recurring_end_type,
+                recurring_rules.end_after_occurrences AS recurring_end_after_occurrences
+        FROM tasks
+        LEFT JOIN recurring_rules ON tasks.id = recurring_rules.task_id
+        WHERE tasks.id = ?
+    `;
+
+	db.get(sql, [id], (err, row) => {
+		if (err) {
+			res.status(500).json({ error: err.message });
+			return;
+		}
+		if (!row) {
+			res.status(404).json({ message: 'Task not found' });
+			return;
         }
-        if (!row) {
-            res.status(404).json({ message: 'Task not found' });
-            return;
-        }
-        res.json(processTaskRow(row));
-    });
+
+        const processed = processTaskRow(row);
+
+        // Clean up flattened join columns
+        delete row.frequency;
+        delete row.interval;
+        delete row.by_day;
+        delete row.by_month_day;
+        delete row.recurring_start_date;
+        delete row.recurring_end_date;
+        delete row.recurring_end_type;
+        delete row.recurring_end_after_occurrences;
+
+		res.json(processed);
+	});
 });
 
 // GET history of a single task by ID
@@ -395,11 +471,10 @@ app.post('/api/tasks', (req, res) => {
         if (value !== undefined) {
             if (dbField === 'completed') {
                 value = value ? 1 : 0;
-            } else if (dbField === 'recurring') {
-                value = (value === null || typeof value !== 'object') ? '' : JSON.stringify(value);
             }  else if ((dbField === 'parent_task_id' || dbField === 'category_id') && value === '') {
                 value = null;
             }
+
             dbFields.push(dbField);
             placeholders.push('?');
             values.push(value);
@@ -411,19 +486,78 @@ app.post('/api/tasks', (req, res) => {
         return;
     }
 
-    const sql = `INSERT INTO tasks (${dbFields.join(', ')}) VALUES (${placeholders.join(', ')})`;
-
-    db.run(sql, values, function (err) {
+    db.run(`
+        INSERT INTO tasks (${dbFields.join(', ')}) VALUES (${placeholders.join(', ')})
+        `, values, function (err) {
         if (err) {
             console.error('Error inserting task:', err.message);
             return res.status(500).json({ error: err.message });
         }
 
-        db.get('SELECT * FROM tasks WHERE id = ?', [this.lastID], (err, row) => {
+        const taskId = this.lastID;
+        const recurring = req.body.recurring;
+
+        if (recurring) {
+            let parsed;
+            if (typeof recurring === 'string') {
+                try {
+                parsed = JSON.parse(recurring);
+                } catch(e) {
+                console.error('Invalid recurring JSON:', e);
+                }
+            } else if (typeof recurring === 'object') {
+                parsed = recurring;
+            }
+
+            if (parsed) {
+                const frequency = parsed.frequency || '';
+                const interval = parsed.interval || 1;
+                const by_day = parsed.by_day || null;
+                const by_month_day = parsed.by_month_day || null;
+                const start_date = parsed.start_date;
+                let end_date = null;
+                const end_type = parsed.end ? parsed.end.type : 'never'; // 'on', 'after', or 'never'
+                const end_after_occurrences = parsed.end?.type === 'after' ? parsed.end.after_occurrences : null;
+
+                if (parsed.end) {
+                    if (parsed.end.type === 'on') {
+                    end_date = parsed.end.date;  // date string expected here
+                    } else {
+                    end_date = null; // 'never' or 'after' — no date stored for now
+                    }
+                }
+
+                if (!frequency) {
+                    console.warn('Invalid recurring pattern: missing frequency');
+                } else {
+                    const insertRecurring = `
+                    INSERT INTO recurring_rules (task_id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `;
+                    db.run(insertRecurring, [taskId, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences], (recErr) => {
+                    if (recErr) {
+                        console.error('Error inserting recurring rule:', recErr.message);
+                    }
+                    });
+                }
+            }
+        }
+
+        // Fetch and return the newly created task
+        db.get(`
+            SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
+                recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
+                recurring_rules.end_date AS recurring_end_date, recurring_rules.end_type AS recurring_end_type,
+                recurring_rules.end_after_occurrences AS recurring_end_after_occurrences
+            FROM tasks
+            LEFT JOIN recurring_rules ON tasks.id = recurring_rules.task_id
+            WHERE tasks.id = ?
+            `, [taskId], (err, row) => {
             if (err) return res.status(500).json({ error: err.message });
 
+            const processed = processTaskRow(row);
             debouncedPublishUpcomingTasksState();
-            res.status(201).json(processTaskRow(row));
+            res.status(201).json(processed);
         });
     });
 });
@@ -545,94 +679,153 @@ app.post('/api/tasks/:id/redo', (req, res) => {
 // PUT/PATCH update an existing task
 app.put('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
+    const updates = [];
+    const values = [];
 
-    // Step 1: Fetch the original task to compare changes
-    db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, originalTask) => {
-        if (err) {
-            res.status(500).json({ error: 'Error fetching task for update' });
-            return;
+    Object.entries(fieldMap).forEach(([inputField, dbField]) => {
+        const value = req.body[inputField];
+        if (value !== undefined && dbField !== 'recurring') {
+            updates.push(`${dbField} = ?`);
+            values.push(value);
         }
-        if (!originalTask) {
-            res.status(404).json({ message: 'Task not found' });
-            return;
-        }
-
-        // Step 2: Build updates
-        const updates = [];
-        const params = [];
-
-        Object.entries(fieldMap).forEach(([inputField, dbField]) => {
-            let value = req.body[inputField];
-            if (value !== undefined) {
-                if (dbField === 'completed') {
-                    value = value ? 1 : 0;
-                } else if (dbField === 'recurring') {
-                    value = (value === null || typeof value !== 'object') ? '' : JSON.stringify(value);
-                } else if ((dbField === 'parent_task_id' || dbField === 'category_id') && value === '') {
-                    value = null;
-                }
-                updates.push(`${dbField} = ?`);
-                params.push(value);
-            }
-        });
-
-        if (updates.length === 0) {
-            return res.status(400).json({ error: 'No fields to update provided' });
-        }
-
-        const sql = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
-        params.push(id);
-
-        // Step 3: Execute update
-        db.run(sql, params, function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            if (this.changes === 0) return res.status(404).json({ message: 'No changes made' });
-
-            // Step 4: Log history changes
-            Object.entries(fieldMap).forEach(([inputField, dbField]) => {
-                const newValueRaw = req.body[inputField];
-                if (newValueRaw !== undefined) {
-                    let newValue = newValueRaw;
-                    let oldValue = originalTask[dbField];
-
-                    if (dbField === 'completed') {
-                        newValue = newValue ? 1 : 0;
-                    } else if (dbField === 'recurring') {
-                        newValue = (newValue === null || typeof newValue !== 'object') ? '' : JSON.stringify(newValue);
-                        try { oldValue = JSON.stringify(JSON.parse(oldValue)); } catch (e) {}
-                    }
-
-                    logTaskHistory(id, dbField, oldValue, newValue);
-                }
-            });
-
-            // Step 5: Return updated task
-            db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, row) => {
-                if (err) return res.status(500).json({ error: err.message });
-                if (!row) return res.status(404).json({ message: 'Task updated but retrieval failed' });
-
-                debouncedPublishUpcomingTasksState();
-                res.json({ message: 'Task updated successfully', task: processTaskRow(row) });
-            });
-        });
     });
+
+    if (updates.length === 0 && !req.body.recurring) {
+        return res.status(400).json({ error: 'No valid fields provided' });
+    }
+
+    // Step 1: Update task if needed
+    const updateTask = () => {
+        return new Promise((resolve, reject) => {
+            if (updates.length === 0) return resolve(); // skip if no updates
+
+            const sql = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
+            values.push(id);
+            db.run(sql, values, function (err) {
+                if (err) return reject(err);
+                resolve();
+            });
+        });
+    };
+
+    // Step 2: Update recurring_rules
+    const updateRecurring = () => {
+        return new Promise((resolve, reject) => {
+            const recurring = req.body.recurring;
+            if (!recurring) return resolve(); // no recurring to update
+
+            let parsed;
+            try {
+                parsed = typeof recurring === 'string' ? JSON.parse(recurring) : recurring;
+            } catch (e) {
+                return reject(new Error('Invalid recurring JSON'));
+            }
+
+            const frequency = parsed.frequency || '';
+            const interval = parsed.interval || 1;
+            const by_day = parsed.by_day || null;
+            const by_month_day = parsed.by_month_day || null;
+            const start_date = parsed.start_date;
+            let end_date = null;
+            const end_type = parsed.end?.type || 'never';
+            const after_occurrences = parsed.end?.after_occurrences || null;
+
+            if (end_type === 'on') {
+                end_date = parsed.end.date || null;
+            }
+
+            if (!frequency) {
+                console.warn('Missing frequency in recurring update');
+                return resolve(); // Don't insert/update invalid rule
+            }
+
+            const checkSql = `SELECT 1 FROM recurring_rules WHERE task_id = ?`;
+            db.get(checkSql, [id], (err, row) => {
+                if (err) return reject(err);
+
+                const query = row
+                    ? {
+                        sql: `UPDATE recurring_rules
+                            SET frequency = ?, interval = ?, by_day = ?, by_month_day = ?, start_date = ?, end_date = ?, end_type = ?, end_after_occurrences = ?
+                            WHERE task_id = ?`,
+                        values: [frequency, interval, by_day, by_month_day, start_date, end_date, end_type, after_occurrences, id]
+                    }
+                    : {
+                        sql: `INSERT INTO recurring_rules (task_id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        values: [id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, after_occurrences]
+                    };
+
+                db.run(query.sql, query.values, (dbErr) => {
+                    if (dbErr) return reject(dbErr);
+                    resolve(); // only now resolve
+                });
+            });
+        });
+    };
+
+    // Final: run everything
+    updateTask()
+        .then(updateRecurring)
+        .then(() => {
+            db.get(`
+                SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
+                    recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
+                    recurring_rules.end_date AS recurring_end_date, recurring_rules.end_type AS recurring_end_type,
+                    recurring_rules.end_after_occurrences AS recurring_end_after_occurrences
+                FROM tasks
+                LEFT JOIN recurring_rules ON tasks.id = recurring_rules.task_id
+                WHERE tasks.id = ?
+            `, [id], (err, row) => {
+                if (err) return res.status(500).json({ error: err.message });
+                if (!row) return res.status(404).json({ message: 'Task not found' });
+
+                const processed = processTaskRow(row);
+
+                // Clean up flattened join columns
+                delete row.frequency;
+                delete row.interval;
+                delete row.by_day;
+                delete row.by_month_day;
+                delete row.recurring_start_date;
+                delete row.recurring_end_date;
+                delete row.recurring_end_type;
+                delete row.recurring_end_after_occurrences;
+
+                res.json({ message: 'Task updated successfully', task: processed });
+            });
+        })
+        .catch((err) => {
+            console.error('Error updating task:', err.message);
+            res.status(500).json({ error: err.message });
+        });
 });
 
 // DELETE a task
 app.delete('/api/tasks/:id', (req, res) => {
-    const { id } = req.params;
-    db.run('DELETE FROM tasks WHERE id = ?', [id], function(err) {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        if (this.changes === 0) {
-            res.status(404).json({ message: 'Task not found' });
-            return;
-        }
-	    debouncedPublishUpcomingTasksState();
-        res.json({ message: 'Task deleted successfully', changes: this.changes });
-    });
+	const { id } = req.params;
+
+	db.serialize(() => {
+		// Explicitly delete recurring rule (optional if using ON DELETE CASCADE)
+		db.run('DELETE FROM recurring_rules WHERE task_id = ?', [id], (recErr) => {
+			if (recErr) {
+				console.warn('Failed to delete recurring rule (possibly not found):', recErr.message);
+			}
+		});
+
+		// Delete the task itself
+		db.run('DELETE FROM tasks WHERE id = ?', [id], function(err) {
+			if (err) {
+				return res.status(500).json({ error: err.message });
+			}
+			if (this.changes === 0) {
+				return res.status(404).json({ message: 'Task not found' });
+			}
+
+			debouncedPublishUpcomingTasksState();
+			res.json({ message: 'Task deleted successfully', changes: this.changes });
+		});
+	});
 });
 
 // Global error handlers

@@ -7,7 +7,6 @@ const fieldMap = {
     status: 'status',
     parentTaskId: 'parent_task_id',
     categoryId: 'category_id',
-    recurring: 'recurring'
 };
 
 const reverseFieldMap = Object.fromEntries(
