@@ -19,9 +19,9 @@ comparison to installing any other Home Assistant add-on.
 1. Find the "Mosquitto broker" add-on and click it.
 1. Click on the "INSTALL" button.
 1. Configure the MQTT username and password.
-1. Start the "My Todo App" add-on.
-1. Check the logs of the "My Todo App" add-on to see if everything went well.
-1. Click on the "OPEN WEB UI" button to get into the interface of My Todo App.
+1. Start the "MULE To-Do" add-on.
+1. Check the logs of the "MULE Todo App" add-on to see if everything went well.
+1. Click on the "OPEN WEB UI" button to get into the interface of MULE To-Do.
 1. Enjoy the add-on!
 
 [addon-badge]: https://my.home-assistant.io/badges/supervisor_addon.svg
