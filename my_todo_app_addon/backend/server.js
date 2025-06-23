@@ -48,51 +48,153 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
 const db = new sqlite3.Database('/data/todo.db', (err) => {
     if (err) {
         console.error('Error connecting to database:', err.message);
-	process.exit(1);
-    } else {
-        console.log('Connected to the SQLite database.');
-        // Create the tasks table if it doesn't exist
-        db.run(`CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            completed BOOLEAN DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-			description TEXT DEFAULT '',
-            dueDate TEXT DEFAULT '',
-            priority TEXT DEFAULT 'Low',
-            status TEXT DEFAULT 'Not Started',
-            parentTaskId INTEGER DEFAULT '',
-            category TEXT DEFAULT '',
-            progress INTEGER DEFAULT 0,
-			recurring TEXT DEFAULT ''
-        )`, (createErr) => {
+        process.exit(1);
+    }
+
+    console.log('Connected to the SQLite database.');
+
+    // Enable foreign key constraints
+    db.run('PRAGMA foreign_keys = ON');
+
+    // Create tables in sequence
+    db.serialize(() => {
+        // Categories (nested)
+        db.run(`
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                parent_id INTEGER,
+                FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
+            )
+        `);
+
+        // Tasks
+        db.run(`
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                completed BOOLEAN DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                description TEXT DEFAULT '',
+                due_date TEXT DEFAULT '',
+                priority TEXT DEFAULT 'Low',
+                status TEXT DEFAULT 'Not Started',
+                parent_task_id INTEGER,
+                category_id INTEGER,
+                FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+                FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+            )
+        `);
+
+        // Tags
+        db.run(`
+            CREATE TABLE IF NOT EXISTS tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            )
+        `);
+
+        // Task-Tag linking
+        db.run(`
+            CREATE TABLE IF NOT EXISTS task_tags (
+                task_id INTEGER,
+                tag_id INTEGER,
+                PRIMARY KEY (task_id, tag_id),
+                FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            )
+        `);
+
+        // Recurring Rules
+        db.run(`
+            CREATE TABLE IF NOT EXISTS recurring_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                frequency TEXT NOT NULL,
+                interval INTEGER DEFAULT 1,
+                by_day TEXT DEFAULT NULL,
+                by_month_day TEXT DEFAULT NULL,
+                start_date TEXT NOT NULL,
+                end_date TEXT DEFAULT NULL,
+                FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+            )
+        `);
+
+        // (Optional) Task History
+        db.run(`
+            CREATE TABLE IF NOT EXISTS task_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                field_changed TEXT NOT NULL,
+                old_value TEXT,
+                new_value TEXT,
+                changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+            )
+        `, (createErr) => {
             if (createErr) {
-                console.error('Error creating table:', createErr.message);
-		process.exit(1);
+                console.error('Error creating tables:', createErr.message);
+                process.exit(1);
             } else {
-                console.log('Tasks table ensured.');
-		connectMqttAndStartServer();
+                console.log('All tables ensured.');
+                connectMqttAndStartServer();
             }
         });
-    }
+    });
 });
 
-const processTaskRow = (row) => {
-    if (row && row.recurring) { // Check if row exists and has a recurring property
-        try {
-            // Attempt to parse the recurring string into a JSON object
-            row.recurring = JSON.parse(row.recurring);
-        } catch (e) {
-            console.error('Error parsing recurring JSON for task ID:', row.id, e);
-            // If parsing fails, default to an empty object or handle as needed
-            row.recurring = {};
+const MAX_HISTORY_PER_TASK = 20;
+
+function logTaskHistory(taskId, field, oldValue, newValue) {
+    if (oldValue === newValue) return; // skip unchanged values
+
+    db.run(`
+        INSERT INTO task_history (task_id, field_changed, old_value, new_value)
+        VALUES (?, ?, ?, ?)
+    `, [taskId, field, String(oldValue), String(newValue)], function (err) {
+        if (err) {
+            console.error(`Error logging history for task ${taskId} field '${field}':`, err.message);
+        } else {
+            db.run(`
+                DELETE FROM task_history
+                WHERE task_id = ?
+                AND id NOT IN (
+                    SELECT id FROM task_history
+                    WHERE task_id = ?
+                    ORDER BY changed_at DESC
+                    LIMIT ?
+                )
+            `, [taskId, taskId, MAX_HISTORY_PER_TASK], (pruneErr) => {
+                if (pruneErr) {
+                    console.error('Error pruning task history:', pruneErr.message);
+                }
+            });
         }
-    } else if (row) {
-        // If recurring property is null or empty string, ensure it's an empty object for frontend consistency
-        row.recurring = {};
-    }
-    return row; // Return the modified row
-};
+    });
+}
+
+function processTaskRow(row) {
+    if (!row) return null;
+
+    return {
+        id: row.id,
+        title: row.title,
+        completed: !!row.completed,
+        description: row.description,
+        dueDate: row.due_date,
+        priority: row.priority,
+        status: row.status,
+        parentTaskId: row.parent_task_id,
+        categoryId: row.category_id,
+        recurring: (() => {
+            try {
+                return row.recurring ? JSON.parse(row.recurring) : {};
+            } catch {
+                return {};
+            }
+        })()
+    };
+}
 
 function debounce(fn, delay) {
     let timeout;
@@ -259,51 +361,60 @@ app.get('/api/tasks/:id', (req, res) => {
 
 // 3. POST a new task
 app.post('/api/tasks', (req, res) => {
-    const { title, description, dueDate, priority, status, parentTaskId, category, progress, recurring } = req.body;
-    if (!title) {
+    const fieldMap = {
+        title: 'title',
+        completed: 'completed',
+        description: 'description',
+        dueDate: 'due_date',
+        priority: 'priority',
+        status: 'status',
+        parentTaskId: 'parent_task_id',
+        categoryId: 'category_id',
+        recurring: 'recurring'
+    };
+
+    const dbFields = [];
+    const placeholders = [];
+    const values = [];
+
+    Object.entries(fieldMap).forEach(([inputField, dbField]) => {
+        let value = req.body[inputField];
+
+        if (value !== undefined) {
+            if (dbField === 'completed') {
+                value = value ? 1 : 0;
+            } else if (dbField === 'recurring') {
+                value = (value === null || typeof value !== 'object') ? '' : JSON.stringify(value);
+            }
+            dbFields.push(dbField);
+            placeholders.push('?');
+            values.push(value);
+        }
+    });
+
+    if (!dbFields.includes('title')) {
         res.status(400).json({ error: 'Title is required' });
         return;
     }
 
-    const columns = ['title', 'description', 'dueDate', 'priority', 'status', 'parentTaskId', 'category', 'progress'];
-    const placeholders = Array(columns.length).fill('?');
-    const values = [title, description, dueDate, priority, status, parentTaskId, category, progress];
+    const sql = `INSERT INTO tasks (${dbFields.join(', ')}) VALUES (${placeholders.join(', ')})`;
 
-    const filteredColumns = [];
-    const filteredPlaceholders = [];
-    const filteredValues = [];
-
-    if (recurring !== undefined && recurring !== null && typeof recurring === 'object') {
-        filteredColumns.push('recurring');
-        filteredPlaceholders.push('?');
-        filteredValues.push(JSON.stringify(recurring)); // Stringify the object
-    }
-
-    for (let i = 0; i < columns.length; i++) {
-        // Only include if value is not undefined (i.e., it was explicitly sent in the request body)
-        // Note: Empty strings are still valid data for the database
-        if (values[i] !== undefined) {
-            filteredColumns.push(columns[i]);
-            filteredPlaceholders.push(placeholders[i]);
-            filteredValues.push(values[i]);
-        }
-    }
-
-    db.run(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues, function(err) {
+    db.run(sql, values, function (err) {
         if (err) {
-	    console.error('Error inserting task:', err.message);
+            console.error('Error inserting task:', err.message);
             res.status(500).json({ error: err.message });
             return;
         }
-        // Return the newly created task with its ID
+
         const newTaskId = this.lastID;
         db.get('SELECT * FROM tasks WHERE id = ?', [newTaskId], (err, row) => {
             if (err) {
                 res.status(500).json({ error: err.message });
                 return;
             }
-	    debouncedPublishUpcomingTasksState();
-            res.status(201).json(processTaskRow(row)); // Send the full new task object back
+
+            debouncedPublishUpcomingTasksState();
+            res.status(201).json(processTaskRow(row));
         });
     });
 });
@@ -311,83 +422,99 @@ app.post('/api/tasks', (req, res) => {
 // 4. PUT/PATCH update an existing task (e.g., toggle completed status or update title)
 app.put('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
-    const { title, completed, description, dueDate, priority, status, parentTaskId, category, progress, recurring } = req.body;
 
-    let updates = [];
-    let params = [];
-    let sql = 'UPDATE tasks SET ';
+    const fieldMap = {
+        title: 'title',
+        completed: 'completed',
+        description: 'description',
+        dueDate: 'due_date',
+        priority: 'priority',
+        status: 'status',
+        parentTaskId: 'parent_task_id',
+        categoryId: 'category_id',
+        recurring: 'recurring'
+    };
 
-    if (title !== undefined) {
-        updates.push('title = ?');
-        params.push(title);
-    }
-    if (completed !== undefined) {
-        updates.push('completed = ?');
-        params.push(completed ? 1 : 0); // SQLite stores booleans as 0 or 1
-    }
-	if (description !== undefined) {
-        updates.push('description = ?');
-        params.push(description);
-    }
-    if (dueDate !== undefined) {
-        updates.push('dueDate = ?');
-        params.push(dueDate);
-    }
-    if (priority !== undefined) {
-        updates.push('priority = ?');
-        params.push(priority);
-    }
-    if (status !== undefined) {
-        updates.push('status = ?');
-        params.push(status);
-    }
-    if (parentTaskId !== undefined) {
-        updates.push('parentTaskId = ?');
-        params.push(parentTaskId);
-    }
-    if (category !== undefined) {
-        updates.push('category = ?');
-        params.push(category);
-    }
-    if (progress !== undefined) {
-        updates.push('progress = ?');
-        params.push(progress);
-    }
-	if (recurring !== undefined) {
-        updates.push('recurring = ?');
-        if (recurring === null || typeof recurring !== 'object') { // Allow clearing recurring or invalid data
-            params.push(''); // Save as empty string or NULL if not an object
-        } else {
-            params.push(JSON.stringify(recurring)); // Stringify the object
-        }
-    }
-
-    if (updates.length === 0) {
-        return res.status(400).json({ error: 'No fields to update provided' });
-    }
-
-    sql += updates.join(', ') + ' WHERE id = ?';
-    params.push(id);
-
-    db.run(sql, params, function(err) {
+    // Step 1: Fetch the original task to compare changes
+    db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, originalTask) => {
         if (err) {
-            res.status(500).json({ error: err.message });
+            res.status(500).json({ error: 'Error fetching task for update' });
             return;
         }
-        if (this.changes === 0) {
-            res.status(404).json({ message: 'Task not found or no changes made' });
+        if (!originalTask) {
+            res.status(404).json({ message: 'Task not found' });
             return;
         }
-	const updatedTaskId = id;
-	db.get('SELECT * FROM tasks WHERE id = ?', [updatedTaskId], (err, row) => {
-		if (err) {
-			res.status(500).json({ error: err.message });
-                	return;
-		}
-		if (!row) { /* ... not found for retrieval handling ... */ } // TODO
-		debouncedPublishUpcomingTasksState();
-		res.json({ message: 'Task updated successfully', task: processTaskRow(row) });
-	});
+
+        // Step 2: Build updates
+        const updates = [];
+        const params = [];
+
+        Object.entries(fieldMap).forEach(([inputField, dbField]) => {
+            let value = req.body[inputField];
+            if (value !== undefined) {
+                if (dbField === 'completed') {
+                    value = value ? 1 : 0;
+                } else if (dbField === 'recurring') {
+                    value = (value === null || typeof value !== 'object') ? '' : JSON.stringify(value);
+                }
+                updates.push(`${dbField} = ?`);
+                params.push(value);
+            }
+        });
+
+        if (updates.length === 0) {
+            return res.status(400).json({ error: 'No fields to update provided' });
+        }
+
+        const sql = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
+        params.push(id);
+
+        // Step 3: Execute update
+        db.run(sql, params, function (err) {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+
+            if (this.changes === 0) {
+                res.status(404).json({ message: 'No changes made' });
+                return;
+            }
+
+            // Step 4: Log history changes
+            Object.entries(fieldMap).forEach(([inputField, dbField]) => {
+                const newValueRaw = req.body[inputField];
+                if (newValueRaw !== undefined) {
+                    let newValue = newValueRaw;
+                    let oldValue = originalTask[dbField];
+
+                    if (dbField === 'completed') {
+                        newValue = newValue ? 1 : 0;
+                    } else if (dbField === 'recurring') {
+                        newValue = (newValue === null || typeof newValue !== 'object') ? '' : JSON.stringify(newValue);
+                        try { oldValue = JSON.stringify(JSON.parse(oldValue)); } catch (e) {}
+                    }
+
+                    logTaskHistory(id, dbField, oldValue, newValue);
+                }
+            });
+
+            // Step 5: Return updated task
+            db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, row) => {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                if (!row) {
+                    res.status(404).json({ message: 'Task updated but retrieval failed' });
+                    return;
+                }
+
+                debouncedPublishUpcomingTasksState();
+                res.json({ message: 'Task updated successfully', task: processTaskRow(row) });
+            });
+        });
     });
 });
 
