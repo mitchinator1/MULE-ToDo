@@ -477,11 +477,11 @@ const TaskManager = {
 		const taskData = {
 			title: taskName.trim(),
 			description: formData.get('description') || '',
-			dueDate: formData.get('dueDate') || '', // You'll need to parse/format dates if saving to DB
+			dueDate: formData.get('dueDate') || '',
 			priority: formData.get('priority') || 'Low',
 			status: 'Not Started',
-			parentTaskId: formData.get('parentTaskId') || '',
-			categoryId: formData.get('category') || '',
+			parentTaskId: formData.get('parentTaskId') || null,
+			categoryId: formData.get('category') || null,
 		};
 
 		// Only add recurring data if a pattern is selected
