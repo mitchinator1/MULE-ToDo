@@ -889,6 +889,13 @@ const APIManager = {
 		});
 	},
 
+	redoLastChange: async function (taskId) {
+		console.log(`Redoing last change for task ${taskId}...`);
+		return this._fetch(`${API_BASE_URL}/tasks/${taskId}/redo`, {
+			method: 'POST'
+		});
+	},
+
     addTask: async function (taskData) {
         console.log('Adding task:', taskData);
         return this._fetch(`${API_BASE_URL}/tasks`, {

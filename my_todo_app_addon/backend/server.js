@@ -5,6 +5,8 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const mqtt = require('mqtt');
 
+const { fieldMap, reverseFieldMap } = require('./utils/fieldMap');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BIND_IP = '0.0.0.0';
@@ -173,28 +175,27 @@ function logTaskHistory(taskId, field, oldValue, newValue) {
     });
 }
 
-function processTaskRow(row) {
-    if (!row) return null;
+const processTaskRow = (row) => {
+    const mappedRow = {};
 
-    return {
-        id: row.id,
-        title: row.title,
-        completed: !!row.completed,
-        description: row.description,
-        dueDate: row.due_date,
-        priority: row.priority,
-        status: row.status,
-        parentTaskId: row.parent_task_id,
-        categoryId: row.category_id,
-        recurring: (() => {
-            try {
-                return row.recurring ? JSON.parse(row.recurring) : {};
-            } catch {
-                return {};
-            }
-        })()
-    };
-}
+    for (const key in row) {
+        const frontendKey = reverseFieldMap[key] || key;
+        mappedRow[frontendKey] = row[key];
+    }
+
+    // Ensure recurring is parsed
+    if (mappedRow.recurring) {
+        try {
+            mappedRow.recurring = JSON.parse(mappedRow.recurring);
+        } catch {
+            mappedRow.recurring = {};
+        }
+    } else {
+        mappedRow.recurring = {};
+    }
+
+    return mappedRow;
+};
 
 function debounce(fn, delay) {
     let timeout;
@@ -374,24 +375,16 @@ app.get('/api/tasks/:id/history', (req, res) => {
             return res.status(500).json({ error: 'Failed to retrieve task history' });
         }
 
-        res.json(rows);
+        const mappedHistory = rows.map(entry => ({
+            ...entry,
+            field_changed: reverseFieldMap[entry.field_changed] || entry.field_changed
+        }));
+        res.json(mappedHistory);
     });
 });
 
-// 3. POST a new task
+// POST a new task
 app.post('/api/tasks', (req, res) => {
-    const fieldMap = {
-        title: 'title',
-        completed: 'completed',
-        description: 'description',
-        dueDate: 'due_date',
-        priority: 'priority',
-        status: 'status',
-        parentTaskId: 'parent_task_id',
-        categoryId: 'category_id',
-        recurring: 'recurring'
-    };
-
     const dbFields = [];
     const placeholders = [];
     const values = [];
@@ -404,6 +397,8 @@ app.post('/api/tasks', (req, res) => {
                 value = value ? 1 : 0;
             } else if (dbField === 'recurring') {
                 value = (value === null || typeof value !== 'object') ? '' : JSON.stringify(value);
+            }  else if ((dbField === 'parent_task_id' || dbField === 'category_id') && value === '') {
+                value = null;
             }
             dbFields.push(dbField);
             placeholders.push('?');
@@ -421,16 +416,11 @@ app.post('/api/tasks', (req, res) => {
     db.run(sql, values, function (err) {
         if (err) {
             console.error('Error inserting task:', err.message);
-            res.status(500).json({ error: err.message });
-            return;
+            return res.status(500).json({ error: err.message });
         }
 
-        const newTaskId = this.lastID;
-        db.get('SELECT * FROM tasks WHERE id = ?', [newTaskId], (err, row) => {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
+        db.get('SELECT * FROM tasks WHERE id = ?', [this.lastID], (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
 
             debouncedPublishUpcomingTasksState();
             res.status(201).json(processTaskRow(row));
@@ -438,21 +428,123 @@ app.post('/api/tasks', (req, res) => {
     });
 });
 
-// 4. PUT/PATCH update an existing task (e.g., toggle completed status or update title)
-app.put('/api/tasks/:id', (req, res) => {
+// POST an undo task
+app.post('/api/tasks/:id/undo', (req, res) => {
     const { id } = req.params;
 
-    const fieldMap = {
-        title: 'title',
-        completed: 'completed',
-        description: 'description',
-        dueDate: 'due_date',
-        priority: 'priority',
-        status: 'status',
-        parentTaskId: 'parent_task_id',
-        categoryId: 'category_id',
-        recurring: 'recurring'
-    };
+    // Step 1: Get the most recent history entry
+    db.get(`
+        SELECT * FROM task_history
+        WHERE task_id = ?
+        ORDER BY changed_at DESC
+        LIMIT 1
+    `, [id], (err, historyEntry) => {
+        if (err) {
+            console.error('Error querying task history:', err.message);
+            return res.status(500).json({ error: 'Failed to query task history' });
+        }
+
+        if (!historyEntry) {
+            return res.status(404).json({ message: 'No history to undo' });
+        }
+
+        const field = historyEntry.field_changed;
+        const oldValue = historyEntry.old_value;
+
+        // Step 2: Revert the field on the task
+        const updateSQL = `UPDATE tasks SET ${field} = ? WHERE id = ?`;
+
+        db.run(updateSQL, [oldValue, id], function (updateErr) {
+            if (updateErr) {
+                console.error('Error reverting task field:', updateErr.message);
+                return res.status(500).json({ error: 'Failed to revert task change' });
+            }
+
+            // Step 3: Log the undo as a new history entry
+            db.run(`
+                INSERT INTO task_history (task_id, field_changed, old_value, new_value)
+                VALUES (?, ?, ?, ?)
+            `, [id, field, historyEntry.new_value, oldValue], function (logErr) {
+                if (logErr) {
+                    console.error('Error logging undo change:', logErr.message);
+                }
+
+                // Step 4: Return the updated task
+                db.get('SELECT * FROM tasks WHERE id = ?', [id], (getErr, row) => {
+                    if (getErr) {
+                        return res.status(500).json({ error: 'Task updated but retrieval failed' });
+                    }
+
+                    res.json({
+                        message: `Reverted field '${field}'`,
+                        task: processTaskRow(row),
+                        undoneField: field
+                    });
+                });
+            });
+        });
+    });
+});
+
+// POST a redo task
+app.post('/api/tasks/:id/redo', (req, res) => {
+    const { id } = req.params;
+
+    // Step 1: Get the most recent revert/undo (where we just swapped values)
+    db.get(`
+        SELECT * FROM task_history
+        WHERE task_id = ?
+        ORDER BY changed_at DESC
+        LIMIT 1
+    `, [id], (err, lastChange) => {
+        if (err) {
+            console.error('Error retrieving task history:', err.message);
+            return res.status(500).json({ error: 'Failed to fetch task history' });
+        }
+
+        if (!lastChange) {
+            return res.status(404).json({ message: 'No history to redo' });
+        }
+
+        const { field_changed, old_value, new_value } = lastChange;
+
+        // We assume redo means: apply the value we had *before* the undo
+        const redoSQL = `UPDATE tasks SET ${field_changed} = ? WHERE id = ?`;
+
+        db.run(redoSQL, [new_value, id], function (updateErr) {
+            if (updateErr) {
+                console.error('Error applying redo:', updateErr.message);
+                return res.status(500).json({ error: 'Failed to redo task change' });
+            }
+
+            // Log the redo (flipping values again)
+            db.run(`
+                INSERT INTO task_history (task_id, field_changed, old_value, new_value)
+                VALUES (?, ?, ?, ?)
+            `, [id, field_changed, old_value, new_value], function (logErr) {
+                if (logErr) {
+                    console.error('Failed to log redo:', logErr.message);
+                }
+
+                db.get('SELECT * FROM tasks WHERE id = ?', [id], (getErr, row) => {
+                    if (getErr) {
+                        return res.status(500).json({ error: 'Redo applied, but task retrieval failed' });
+                    }
+
+                    res.json({
+                        message: `Redid change to '${field_changed}'`,
+                        task: processTaskRow(row),
+                        redoneField: field_changed
+                    });
+                });
+            });
+        });
+    });
+});
+
+// PUT/PATCH update an existing task
+app.put('/api/tasks/:id', (req, res) => {
+    const { id } = req.params;
 
     // Step 1: Fetch the original task to compare changes
     db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, originalTask) => {
@@ -476,6 +568,8 @@ app.put('/api/tasks/:id', (req, res) => {
                     value = value ? 1 : 0;
                 } else if (dbField === 'recurring') {
                     value = (value === null || typeof value !== 'object') ? '' : JSON.stringify(value);
+                } else if ((dbField === 'parent_task_id' || dbField === 'category_id') && value === '') {
+                    value = null;
                 }
                 updates.push(`${dbField} = ?`);
                 params.push(value);
@@ -491,15 +585,8 @@ app.put('/api/tasks/:id', (req, res) => {
 
         // Step 3: Execute update
         db.run(sql, params, function (err) {
-            if (err) {
-                res.status(500).json({ error: err.message });
-                return;
-            }
-
-            if (this.changes === 0) {
-                res.status(404).json({ message: 'No changes made' });
-                return;
-            }
+            if (err) return res.status(500).json({ error: err.message });
+            if (this.changes === 0) return res.status(404).json({ message: 'No changes made' });
 
             // Step 4: Log history changes
             Object.entries(fieldMap).forEach(([inputField, dbField]) => {
@@ -521,14 +608,8 @@ app.put('/api/tasks/:id', (req, res) => {
 
             // Step 5: Return updated task
             db.get('SELECT * FROM tasks WHERE id = ?', [id], (err, row) => {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                if (!row) {
-                    res.status(404).json({ message: 'Task updated but retrieval failed' });
-                    return;
-                }
+                if (err) return res.status(500).json({ error: err.message });
+                if (!row) return res.status(404).json({ message: 'Task updated but retrieval failed' });
 
                 debouncedPublishUpcomingTasksState();
                 res.json({ message: 'Task updated successfully', task: processTaskRow(row) });
@@ -537,7 +618,7 @@ app.put('/api/tasks/:id', (req, res) => {
     });
 });
 
-// 5. DELETE a task
+// DELETE a task
 app.delete('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
     db.run('DELETE FROM tasks WHERE id = ?', [id], function(err) {
@@ -554,7 +635,7 @@ app.delete('/api/tasks/:id', (req, res) => {
     });
 });
 
-// Global error handlers (important for debugging)
+// Global error handlers
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
     process.exit(1);
