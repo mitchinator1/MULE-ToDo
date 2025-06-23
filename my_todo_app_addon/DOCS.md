@@ -1,4 +1,4 @@
-# Home Assistant Add-on: My To Do App
+# Home Assistant Add-on: MULE To Do
 
 ## How to use
 
