@@ -21,7 +21,7 @@ let mqttClient; // Declare mqttClient globally
 
 // Home Assistant MQTT Discovery topic prefix
 const HA_DISCOVERY_PREFIX = 'homeassistant';
-const ADDON_SLUG = 'my_todo_app'; // Match your add-on slug
+const ADDON_SLUG = 'mule_todo'; // Match your add-on slug
 
 // Define the discovery payload for an "upcoming tasks" sensor
 const UPCOMING_TASKS_SENSOR_CONFIG_TOPIC = `${HA_DISCOVERY_PREFIX}/sensor/${ADDON_SLUG}/upcoming_tasks/config`;
@@ -104,51 +104,48 @@ function debounce(fn, delay) {
 
 // --- MQTT Connection and Publishing Logic ---
 function connectMqttAndStartServer() {
-    const mqttOptions = {
-        port: MQTT_PORT,
-        username: MQTT_USERNAME,
-        password: MQTT_PASSWORD,
-        clientId: `${ADDON_SLUG}_${Math.random().toString(16).substring(2, 8)}` // Unique client ID
-    };
+    const mqttOptions = {
+        port: MQTT_PORT,
+        username: MQTT_USERNAME,
+        password: MQTT_PASSWORD,
+        clientId: `${ADDON_SLUG}_${Math.random().toString(16).substring(2, 8)}` // Unique client ID
+    };
 
     console.log(`MQTT Connection Attempt: Broker=${MQTT_BROKER}, Port=${MQTT_PORT}`);
 
-    mqttClient = mqtt.connect(`mqtt://${MQTT_BROKER}`, mqttOptions);
+    mqttClient = mqtt.connect(`mqtt://${MQTT_BROKER}`, mqttOptions);
 
-    mqttClient.on('connect', () => {
-        console.log('MQTT Connected.');
-        // Publish discovery message
-        mqttClient.publish(UPCOMING_TASKS_SENSOR_CONFIG_TOPIC, JSON.stringify(UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD), { retain: true });
-        console.log('Published MQTT Discovery for Upcoming Tasks Sensor.');
+    mqttClient.on('connect', () => {
+        console.log('MQTT Connected.');
+        // Publish discovery message
+        mqttClient.publish(UPCOMING_TASKS_SENSOR_CONFIG_TOPIC, JSON.stringify(UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD), { retain: true });
+        console.log('Published MQTT Discovery for Upcoming Tasks Sensor.');
 
-        // Initial state update
-        publishUpcomingTasksState();
+        // Initial state update
+        publishUpcomingTasksState();
 
-        // Start periodic updates (e.g., every 5 minutes)
-        setInterval(publishUpcomingTasksState, 5 * 60 * 1000); // 5 minutes
-    });
-
-    mqttClient.on('error', (err) => {
-        console.error('MQTT Error:', err);
-        // Do not exit on MQTT error, just log. The app can still run.
-    });
-
-    mqttClient.on('offline', () => {
-        console.warn('MQTT client went offline.');
-    });
-
-    mqttClient.on('reconnect', () => {
-        console.log('MQTT client reconnected.');
-    });
-
-    // Start the Express server - THIS WAS MISSING ITS WRAPPER IN YOUR PROVIDED CODE
-    const httpServer = app.listen(PORT, BIND_IP, () => {
-        console.log(`Server running on ${BIND_IP}:${PORT}`);
-        console.log(`API will be accessible via ingress`);
-        console.log("SERVER.JS: HTTP server successfully listening.");
+        // Start periodic updates (e.g., every 5 minutes)
+        setInterval(publishUpcomingTasksState, 5 * 60 * 1000); // 5 minutes
     });
 
-    console.log("SERVER.JS: app.listen() call completed. Process should now be kept alive by server.");
+    mqttClient.on('error', (err) => {
+        console.error('MQTT Error:', err);
+        // Do not exit on MQTT error, just log. The app can still run.
+    });
+
+    mqttClient.on('offline', () => {
+        console.warn('MQTT client went offline.');
+    });
+
+    mqttClient.on('reconnect', () => {
+        console.log('MQTT client reconnected.');
+    });
+
+    // Start the Express server
+    const httpServer = app.listen(PORT, BIND_IP, () => {
+        console.log(`Server running on ${BIND_IP}:${PORT}`);
+        console.log("SERVER.JS: HTTP server successfully listening.");
+    });
 
     httpServer.on('error', (err) => {
         console.error('HTTP Server Error (from event listener):', err.message, err.stack);
@@ -203,31 +200,30 @@ function publishUpcomingTasksState() {
             }
         });
 
-	upcomingTasks.sort((a, b) => {
-	    const dateA = new Date(a.dueDate);
-	    const dateB = new Date(b.dueDate);
-	    if (dateA - dateB !== 0) {
-	        return dateA - dateB;
-	    }
-	    return a.id - b.id;
-	});
+        upcomingTasks.sort((a, b) => {
+            const dateA = new Date(a.dueDate);
+            const dateB = new Date(b.dueDate);
+            if (dateA - dateB !== 0) {
+                return dateA - dateB;
+            }
+            return a.id - b.id;
+        });
 
         const count = upcomingTasks.length;
-	const nextDueId = count > 0 ? upcomingTasks[0].id : null;
+	    const nextDueId = count > 0 ? upcomingTasks[0].id : null;
         mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, String(count), { retain: false });
         console.log(`Published upcoming tasks count: ${count}`);
 
         // --- Publish the detailed attributes as JSON ---
         mqttClient.publish(
-	  UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
-	  JSON.stringify({
-	    count: upcomingTasks.length,
-	    next_due_id: nextDueId,
-	    tasks: upcomingTasks
-	  }),
-	  { retain: false }
-	);
-        console.log(`Published upcoming tasks attributes: ${JSON.stringify(upcomingTasks)}`);
+	        UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
+	        JSON.stringify({
+                count: upcomingTasks.length,
+                next_due_id: nextDueId,
+                tasks: upcomingTasks
+            }),
+            { retain: false }
+        );
     });
 }
 const debouncedPublishUpcomingTasksState = debounce(publishUpcomingTasksState, 5000);
@@ -268,21 +264,21 @@ app.post('/api/tasks', (req, res) => {
         res.status(400).json({ error: 'Title is required' });
         return;
     }
-	
+
     const columns = ['title', 'description', 'dueDate', 'priority', 'status', 'parentTaskId', 'category', 'progress'];
     const placeholders = Array(columns.length).fill('?');
     const values = [title, description, dueDate, priority, status, parentTaskId, category, progress];
-	
+
     const filteredColumns = [];
     const filteredPlaceholders = [];
     const filteredValues = [];
-	
+
     if (recurring !== undefined && recurring !== null && typeof recurring === 'object') {
         filteredColumns.push('recurring');
         filteredPlaceholders.push('?');
         filteredValues.push(JSON.stringify(recurring)); // Stringify the object
     }
-	
+
     for (let i = 0; i < columns.length; i++) {
         // Only include if value is not undefined (i.e., it was explicitly sent in the request body)
         // Note: Empty strings are still valid data for the database
@@ -292,7 +288,7 @@ app.post('/api/tasks', (req, res) => {
             filteredValues.push(values[i]);
         }
     }
-	
+
     db.run(`INSERT INTO tasks (${filteredColumns.join(', ')}) VALUES (${filteredPlaceholders.join(', ')})`, filteredValues, function(err) {
         if (err) {
 	    console.error('Error inserting task:', err.message);
@@ -384,9 +380,9 @@ app.put('/api/tasks/:id', (req, res) => {
         }
 	const updatedTaskId = id;
 	db.get('SELECT * FROM tasks WHERE id = ?', [updatedTaskId], (err, row) => {
-		if (err) { 
+		if (err) {
 			res.status(500).json({ error: err.message });
-                	return;			
+                	return;
 		}
 		if (!row) { /* ... not found for retrieval handling ... */ } // TODO
 		debouncedPublishUpcomingTasksState();
