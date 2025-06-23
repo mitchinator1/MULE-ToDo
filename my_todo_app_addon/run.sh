@@ -3,7 +3,7 @@
 
 set -e
 
-bashio::log.info "Starting Node.js server for My To-Do App..."
+bashio::log.info "Starting Node.js server for MULE To-Do..."
 
 # Get configuration from bashio::config.
 # The environment variables are also set by config.yaml's 'environment' section.
