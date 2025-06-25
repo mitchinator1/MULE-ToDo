@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## 0.9.8
+
+- Massive code overhaul for better modularity
+- Revised Task cards
+- Added ability to add and modify categories
+- Added additional database features for future features
+
 ## 0.9.7
 
 - Changed name to MULE To-Do

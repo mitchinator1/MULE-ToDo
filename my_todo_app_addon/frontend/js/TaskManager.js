@@ -1,6 +1,8 @@
 import { UIManager } from './UIManager.js';
 import { DataManager } from './DataManager.js';
 import APIManager from './APIManager.js';
+import { TaskRenderer } from './TaskRenderer.js';
+import { ModalManager } from './ModalManager.js';
 import FilterManager from './FilterManager.js';
 
 export const TaskManager = {
@@ -33,9 +35,10 @@ export const TaskManager = {
 			DataManager.state.categories = [{ id: null, name: 'All' }, ...categories];
 			UIManager.refreshCategoryDropdown?.();
 			UIManager.renderCategories(DataManager.state.categories);
+			ModalManager.init();
 			this.setupEventListeners();
 			UIManager.setupRecurringControls();
-			UIManager.setupRecurringEditControls({
+			ModalManager.setupRecurringEditControls({
 				onRecurringEditSubmit: this.handleRecurringEditSubmit.bind(this)
 			});
 			UIManager.setupSidebar();
@@ -55,35 +58,17 @@ export const TaskManager = {
 
 	setupEventListeners() {
 		UIManager.elements.formElement.addEventListener('submit', this.handleFormSubmit.bind(this));
-		UIManager.elements.addTaskButton.addEventListener('click', () => UIManager.showTaskForm());
+		UIManager.elements.addTaskButton.addEventListener('click', () => ModalManager.showTaskForm());
 		document.addEventListener('click', (event) => {
 			if (event.target === UIManager.elements.taskForm) {
-				UIManager.hideTaskForm();
+				ModalManager.hideTaskForm();
 			}
 		});
-		document.getElementById('showCategoryForm').addEventListener('click', () => UIManager.showCategoryForm());
-		document.getElementById('addCategoryBtn').addEventListener('click', async () => {
-			const input = document.getElementById('newCategoryName');
-			const name = input.value.trim();
-			if (!name) return;
-
-			try {
-				const category = await APIManager.addCategory({ name });
-				DataManager.state.categories.push(category);
-				UIManager.refreshCategoryDropdown?.();
-				UIManager.renderCategoryList();
-				UIManager.renderCategories(DataManager.state.categories);
-				input.value = '';
-			} catch (err) {
-				console.error('Failed to add category', err);
-			}
-		});
-		document.getElementById('categoryModalClose').addEventListener('click', () => UIManager.hideCategoryForm());
 
 		document.getElementById('dueDate')?.addEventListener('change', (e) => this.updateDueDate(e, 'modal'));
 		document.getElementById('dueDate')?.addEventListener('click', (e) => e.stopPropagation());
 
-		document.querySelectorAll('.priority-option').forEach(option =>
+		document.querySelectorAll('#taskForm .priority-option').forEach(option =>
 			option.addEventListener('click', (e) => this.updatePriority(e, 'modal', option.textContent.trim())));
 	},
 
@@ -172,7 +157,7 @@ export const TaskManager = {
 
 				if (result.message === 'Task updated successfully' && result.task) {
 					DataManager.updateTask(result.task);
-					UIManager.updateTaskElement(taskId, result.task);
+					TaskRenderer.updateTaskElement(taskId, result.task);
 					UIManager.showMessage('Task updated successfully', 'success');
 				} else {
 					 // Handle cases where update might succeed but task object is not returned or message is different
@@ -194,7 +179,7 @@ export const TaskManager = {
 			console.error('Error in handleFormSubmit:', error);
 			UIManager.showErrorMessage(error, isEditing ? 'updating task' : 'adding task');
 		} finally {
-			UIManager.hideTaskForm();
+			ModalManager.hideTaskForm();
 			UIManager.hideThrobber(isEditing ? 'Updating task' : 'Adding task');
 			if (!isEditing) { // Only reset if it was an add operation
 				event.target.reset();
@@ -220,8 +205,11 @@ export const TaskManager = {
 			});
 			if (result.message === 'Task updated successfully' && result.task) {
 				DataManager.updateTask(result.task);
-				UIManager.updateTaskElement(taskId, result.task);
-				if (status === 'Completed' && JSON.stringify(result.task.recurring) !== "{}") {
+				TaskRenderer.updateTaskElement(taskId, result.task);
+
+				// Correctly check if the task is recurring before creating the next instance
+				const isRecurring = result.task.recurring && result.task.recurring.frequency && result.task.recurring.frequency !== 'none';
+				if (status === 'Completed' && isRecurring) {
 					await this.handleRecurringTask(result.task);
 				}
 				UIManager.showMessage('Status updated successfully', 'success');
@@ -258,13 +246,21 @@ export const TaskManager = {
 	},
 
 	calculateNextOccurrence(task) {
-		if (!task.recurring || JSON.stringify(task.recurring) === "{}") return null;
+		// More robust check for a valid recurring pattern
+		if (!task.recurring || !task.recurring.frequency || task.recurring.frequency === 'none') {
+			return null;
+		}
 
+		// Ensure we have a valid date to start from
 		const lastDate = new Date(task.dueDate);
+		if (isNaN(lastDate.getTime())) {
+			console.error("Cannot calculate next occurrence from invalid due date:", task.dueDate);
+			return null;
+		}
 		const pattern = task.recurring;
 		let nextDate = new Date(lastDate);
 
-		switch (pattern.pattern) {
+		switch (pattern.frequency) {
 			case 'daily':
 				nextDate.setDate(lastDate.getDate() + 1);
 				break;
@@ -286,50 +282,55 @@ export const TaskManager = {
 				nextDate.setFullYear(lastDate.getFullYear() + 1);
 				break;
 			case 'custom':
-				const { value, unit } = pattern.interval;
-				switch (unit) {
-					case 'days':
-						nextDate.setDate(lastDate.getDate() + value);
-						break;
-					case 'weeks':
-						nextDate.setDate(lastDate.getDate() + (value * 7));
-						break;
-					case 'months':
-						nextDate.setMonth(lastDate.getMonth() + value);
-						break;
-					case 'years':
-						nextDate.setFullYear(lastDate.getFullYear() + value);
-						break;
+				if (pattern.interval) {
+					const {
+						value,
+						unit
+					} = pattern.interval;
+					switch (unit) {
+						case 'days':
+							nextDate.setDate(lastDate.getDate() + value);
+							break;
+						case 'weeks':
+							nextDate.setDate(lastDate.getDate() + (value * 7));
+							break;
+						case 'months':
+							nextDate.setMonth(lastDate.getMonth() + value);
+							break;
+						case 'years':
+							nextDate.setFullYear(lastDate.getFullYear() + value);
+							break;
+					}
 				}
 				break;
 		}
-		// Check if we've reached the end
-		if (pattern.end.type === 'on' && nextDate > new Date(pattern.end.value)) {
-			return null;
-		}
-		if (pattern.end.type === 'after') {
-			// Decrement the occurrence count
-			pattern.end.value--;
-			if (pattern.end.value <= 0) {
+		// Check if the recurring series has ended by date
+		if (pattern.end && pattern.end.type === 'on' && pattern.end.date) {
+			if (nextDate > new Date(pattern.end.date)) {
 				return null;
 			}
 		}
+		// Note: 'ends after X occurrences' is stateful and best managed by the backend.
+		// The client will simply create the next task if the rule hasn't explicitly ended by date.
 		return nextDate;
 	},
 
 	async createNextRecurringTask(task, nextDate) {
+		const { id, ...restOfTask } = task; // Destructure to remove original ID
+
 		const nextTask = {
-			...task,
+			...restOfTask,
 			status: "Not Started",
 			dueDate: nextDate.toISOString().split('T')[0],
 			isRecurringInstance: true,
-			originalTaskId: task.id
+			originalTaskId: id
 		};
 		try {
-			const result = await APIManager.addTask(nextTask);
-			if (result.message === 'Task updated successfully' && result.task) {
-				DataManager.addTask(result.task);
-				this.renderTasks();
+			const newTask = await APIManager.addTask(nextTask);
+			if (newTask && newTask.id) {
+				DataManager.addTask(newTask);
+				UIManager.addTaskToUI(newTask);
+				UIManager.showMessage('Next recurring task created', 'success');
 			}
 		} catch (error) {
 			UIManager.showErrorMessage(error, 'creating next recurring task');
@@ -344,7 +345,7 @@ export const TaskManager = {
 			});
 			if (result.message === 'Task updated successfully' && result.task) {
 				DataManager.updateTask(result.task);
-				UIManager.updateTaskElement(taskId, result.task);
+				TaskRenderer.updateTaskElement(taskId, result.task);
 				UIManager.showMessage('Task updated successfully', 'success');
 			} else {
 				UIManager.showErrorMessage(`Failed to update ${field}`, `updating ${field}`);
@@ -369,33 +370,33 @@ export const TaskManager = {
 				this.updateTaskField(taskId, 'title', newTitle);
 			}
 		}
-		UIManager.finishTitleEdit(event.target.closest('.title-container'));
+		TaskRenderer.finishTitleEdit(event.target.closest('.title-container'));
 	},
 
 	updateDescription(event, taskId) {
 		const newDescription = event.target.value.trim();
 		const container = event.target.closest('.description-container');
-		const descriptionDiv = container.querySelector('.description');
-		const oldDescription = descriptionDiv.textContent.trim();
-		// Check if there are changes
+
+		// Get the original description from the data model, not the DOM, to correctly handle placeholders.
+		const task = DataManager.getTaskById(taskId);
+		const oldDescription = task ? task.description : '';
+
+		// Only update if the content has actually changed.
 		if (newDescription !== oldDescription) {
-			if (oldDescription !== 'Add description...') {
-				descriptionDiv.innerHTML = newDescription || '<span class="placeholder">Add description...</span>';
-				this.updateTaskField(taskId, 'description', newDescription);
-			}
+			const descriptionDiv = container.querySelector('.description');
+			descriptionDiv.innerHTML = newDescription || '<span class="placeholder">Add description...</span>';
+			this.updateTaskField(taskId, 'description', newDescription);
 		}
-		UIManager.finishDescriptionEdit(container);
+		TaskRenderer.finishDescriptionEdit(container);
 	},
 
 	updateDueDate(event, taskId) {
 		event.stopPropagation();
 		const newDueDate = event.target.value;
 		if (taskId === 'modal') {
-			UIManager.updateDueDateDisplay(taskId, newDueDate);
+			ModalManager.updateDueDateDisplay(newDueDate);
 		} else {
-			// Update UI immediately and close dropdown
-			UIManager.updateDueDateDisplay(taskId, newDueDate);
-			// Then update server
+			TaskRenderer.updateDueDateDisplay(taskId, newDueDate);
 			this.updateTaskField(taskId, 'dueDate', newDueDate);
 		}
 	},
@@ -403,11 +404,9 @@ export const TaskManager = {
 	updatePriority(event, taskId, priority) {
 		event.stopPropagation(); // Prevent the event from bubbling up
 		if (taskId === 'modal') {
-			UIManager.updatePriorityDisplay(taskId, priority);
+			ModalManager.updatePriorityDisplay(priority);
 		} else {
-			// First update UI
-			UIManager.updatePriorityDisplay(taskId, priority);
-			// Then update server
+			TaskRenderer.updatePriorityDisplay(taskId, priority);
 			this.updateTaskField(taskId, 'priority', priority);
 		}
 	},
@@ -439,7 +438,7 @@ export const TaskManager = {
 			UIManager.showErrorMessage(error, 'updating recurring pattern');
 		} finally {
 			UIManager.hideThrobber('Updating recurring pattern');
-			UIManager.hideRecurringEditForm();
+			ModalManager.hideRecurringEditForm();
 		}
 	},
 

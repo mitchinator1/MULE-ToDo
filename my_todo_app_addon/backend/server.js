@@ -11,7 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BIND_IP = '0.0.0.0';
 
-app.use(cors()); // Enable CORS for all routes (important for development)
+app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Enable parsing of JSON request bodies
 
 // MQTT Configuration
@@ -45,6 +45,10 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
         sw_version: process.env.ADDON_VERSION || "unknown" // Get version from HA supervisor environment if available
     }
 };
+
+// Constants for upcoming tasks logic
+const UPCOMING_TASKS_WINDOW_DAYS = 7;
+const UPCOMING_TASKS_PUBLISH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Connect to SQLite database. The .db file will be created if it doesn't exist.
 const db = new sqlite3.Database('/data/todo.db', (err) => {
@@ -203,7 +207,7 @@ const processTaskRow = (row) => {
 	if (hasRecurring) {
 		const recurring = {
 			frequency: frequency || null,
-			interval: interval || null,
+			interval: interval, // interval can be 0, so don't default to null
 			by_day: by_day || null,
 			by_month_day: by_month_day || null,
 			start_date: recurring_start_date || null,
@@ -250,10 +254,10 @@ function connectMqttAndStartServer() {
         console.log('Published MQTT Discovery for Upcoming Tasks Sensor.');
 
         // Initial state update
-        publishUpcomingTasksState();
+        debouncedPublishUpcomingTasksState(); // Use debounced for initial and subsequent calls
 
         // Start periodic updates (e.g., every 5 minutes)
-        setInterval(publishUpcomingTasksState, 5 * 60 * 1000); // 5 minutes
+        setInterval(debouncedPublishUpcomingTasksState, UPCOMING_TASKS_PUBLISH_INTERVAL_MS);
     });
 
     mqttClient.on('error', (err) => {
@@ -293,6 +297,7 @@ function publishUpcomingTasksState() {
         return;
     }
 
+    // Select progress and category_id to be included in MQTT attributes
     db.all(`SELECT id, title, description, created_at, due_date, priority, status, category_id FROM tasks WHERE completed = 0 AND due_date IS NOT NULL AND due_date != ""`, [], (err, rows) => {
         if (err) {
             console.error('Error fetching tasks for MQTT state:', err.message);
@@ -303,12 +308,13 @@ function publishUpcomingTasksState() {
         }
 
         const now = new Date();
-        const upcomingTasks = [];
+        const sevenDaysFromNow = new Date(now.getTime() + UPCOMING_TASKS_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+		const upcomingTasks = [];
 
         rows.forEach(task => {
             try {
-                const taskDueDate = new Date(task.dueDate);
-                const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                const taskDueDate = new Date(task.due_date); // Use task.due_date from DB row
 
                 if (taskDueDate >= now && taskDueDate <= sevenDaysFromNow) {
                     upcomingTasks.push({
@@ -318,9 +324,7 @@ function publishUpcomingTasksState() {
                         dueDate: task.dueDate,
                         priority: task.priority,
                         status: task.status,
-                        category: task.category,
-                        progress: task.progress
-                        // We are not including the following yet: 'completed', 'created_at', 'parentTaskId', 'recurring'
+                        category_id: task.category_id,
                     });
                 }
             } catch (dateError) {
@@ -377,19 +381,7 @@ app.get('/api/tasks', (req, res) => {
 
         // Map rows to add recurring objects
         const processedTasks = rows.map(row => {
-            const processed = processTaskRow(row)
-
-            // Clean up flattened join columns
-            delete row.frequency;
-            delete row.interval;
-            delete row.by_day;
-            delete row.by_month_day;
-            delete row.recurring_start_date;
-            delete row.recurring_end_date;
-            delete row.recurring_end_type;
-            delete row.recurring_end_after_occurrences;
-
-            return processed;
+            return processTaskRow(row);
         });
 
         res.json(processedTasks);
@@ -419,19 +411,7 @@ app.get('/api/tasks/:id', (req, res) => {
 			res.status(404).json({ message: 'Task not found' });
 			return;
         }
-
         const processed = processTaskRow(row);
-
-        // Clean up flattened join columns
-        delete row.frequency;
-        delete row.interval;
-        delete row.by_day;
-        delete row.by_month_day;
-        delete row.recurring_start_date;
-        delete row.recurring_end_date;
-        delete row.recurring_end_type;
-        delete row.recurring_end_after_occurrences;
-
 		res.json(processed);
 	});
 });
@@ -536,7 +516,7 @@ app.post('/api/tasks', (req, res) => {
                 }
 
                 if (!frequency) {
-                    console.warn('Invalid recurring pattern: missing frequency');
+                    console.warn(`Task ${taskId}: Invalid recurring pattern: missing frequency`);
                 } else {
                     const insertRecurring = `
                     INSERT INTO recurring_rules (task_id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences)
@@ -758,7 +738,7 @@ app.put('/api/tasks/:id', (req, res) => {
             }
 
             if (!frequency) {
-                console.warn('Missing frequency in recurring update');
+                console.warn(`Task ${id}: Missing frequency in recurring update`);
                 return resolve(); // Don't insert/update invalid rule
             }
 
@@ -787,6 +767,15 @@ app.put('/api/tasks/:id', (req, res) => {
         });
     };
 
+    const deleteRecurring = () => {
+        return new Promise((resolve, reject) => {
+            db.run('DELETE FROM recurring_rules WHERE task_id = ?', [id], (err) => {
+                if (err) return reject(err);
+                resolve();
+            });
+        });
+    };
+
     // Final: run everything
     updateTask()
         .then(updateRecurring)
@@ -803,19 +792,16 @@ app.put('/api/tasks/:id', (req, res) => {
                 if (err) return res.status(500).json({ error: err.message });
                 if (!row) return res.status(404).json({ message: 'Task not found' });
 
-                const processed = processTaskRow(row);
+                const processedTask = processTaskRow(row);
 
-                // Clean up flattened join columns
-                delete row.frequency;
-                delete row.interval;
-                delete row.by_day;
-                delete row.by_month_day;
-                delete row.recurring_start_date;
-                delete row.recurring_end_date;
-                delete row.recurring_end_type;
-                delete row.recurring_end_after_occurrences;
-
-                res.json({ message: 'Task updated successfully', task: processed });
+                // If recurring was explicitly set to 'none' or removed, delete the rule
+                if (req.body.recurring && (req.body.recurring.frequency === 'none' || req.body.recurring === null)) {
+                    deleteRecurring().then(() => {
+                        res.json({ message: 'Task updated successfully', task: processedTask });
+                    }).catch(err => res.status(500).json({ error: err.message }));
+                } else {
+                    res.json({ message: 'Task updated successfully', task: processedTask });
+                }
             });
         })
         .catch((err) => {

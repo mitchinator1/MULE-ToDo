@@ -70,7 +70,9 @@ export const DataManager = {
 	},
 
 	getTaskById(taskId) {
-		return this.state.tasks.find(task => task.id === taskId);
+		// Ensure we are comparing numbers to numbers, as taskId from DOM can be a string
+		const id = typeof taskId === 'string' ? parseInt(taskId, 10) : taskId;
+		return this.state.tasks.find(task => task.id === id);
 	},
 
 	updateTask: function (task) {
