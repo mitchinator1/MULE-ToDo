@@ -11,7 +11,6 @@ export const TaskManager = {
 		weekday: {
 			weekdays: true
 		},
-
 		weekly: {
 			weeks: 1
 		},
@@ -30,12 +29,15 @@ export const TaskManager = {
 		try {
 			UIManager.init();
 			DataManager.init();
+			const categories = await APIManager.getCategories();
+			DataManager.state.categories = [{ id: null, name: 'All' }, ...categories];
+			UIManager.refreshCategoryDropdown?.();
+			UIManager.renderCategories(DataManager.state.categories);
 			this.setupEventListeners();
 			UIManager.setupRecurringControls();
 			UIManager.setupRecurringEditControls({
 				onRecurringEditSubmit: this.handleRecurringEditSubmit.bind(this)
 			});
-			UIManager.renderCategories(DataManager.state.categories);
 			UIManager.setupSidebar();
 			FilterManager.setupFilters();
 			// Only load tasks from server if we don't have any saved
@@ -59,6 +61,24 @@ export const TaskManager = {
 				UIManager.hideTaskForm();
 			}
 		});
+		document.getElementById('showCategoryForm').addEventListener('click', () => UIManager.showCategoryForm());
+		document.getElementById('addCategoryBtn').addEventListener('click', async () => {
+			const input = document.getElementById('newCategoryName');
+			const name = input.value.trim();
+			if (!name) return;
+
+			try {
+				const category = await APIManager.addCategory({ name });
+				DataManager.state.categories.push(category);
+				UIManager.refreshCategoryDropdown?.();
+				UIManager.renderCategoryList();
+				UIManager.renderCategories(DataManager.state.categories);
+				input.value = '';
+			} catch (err) {
+				console.error('Failed to add category', err);
+			}
+		});
+		document.getElementById('categoryModalClose').addEventListener('click', () => UIManager.hideCategoryForm());
 
 		document.getElementById('dueDate')?.addEventListener('change', (e) => this.updateDueDate(e, 'modal'));
 		document.getElementById('dueDate')?.addEventListener('click', (e) => e.stopPropagation());
@@ -71,7 +91,6 @@ export const TaskManager = {
 		try {
 			UIManager.showThrobber('Loading tasks');
 			const response = await APIManager.getTasks();
-			console.log('Tasks loaded:', response);
 			// Parse the response if it's a string
 			const tasks = typeof response === 'string' ? JSON.parse(response) : response;
 			// Ensure we have an array
@@ -108,16 +127,15 @@ export const TaskManager = {
 			description: formData.get('description') || '',
 			dueDate: formData.get('dueDate') || '',
 			priority: formData.get('priority') || 'Low',
+			categoryId: formData.get('taskCategory') || null,
 			status: 'Not Started',
 			parentTaskId: formData.get('parentTaskId') || null,
-			categoryId: formData.get('category') || null,
 		};
 
 		// Only add recurring data if a pattern is selected
 		const pattern = document.getElementById('recurringPattern')?.value;
 		if (pattern && pattern !== 'none') {
 			taskData.recurring = this.getRecurringPattern();
-			console.log('Recurring data:', taskData.recurring);
 		}
 
 		const taskId = formData.get('taskId');

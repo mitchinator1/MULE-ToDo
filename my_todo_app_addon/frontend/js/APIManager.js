@@ -86,7 +86,35 @@ const APIManager = {
         return this._fetch(`${API_BASE_URL}/tasks/${taskId}`, {
             method: 'DELETE'
         });
-    }
+    },
+
+    getCategories: async function () {
+		return this._fetch(`${API_BASE_URL}/categories`, {
+			method: 'GET'
+		});
+	},
+
+	addCategory: async function (data) {
+		return this._fetch(`${API_BASE_URL}/categories`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(data)
+		});
+	},
+
+	updateCategory: async function (id, data) {
+		return this._fetch(`${API_BASE_URL}/categories/${id}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(data)
+		});
+	},
+
+	deleteCategory: async function (id) {
+		return this._fetch(`${API_BASE_URL}/categories/${id}`, {
+			method: 'DELETE'
+		});
+	},
 };
 
 export default APIManager;

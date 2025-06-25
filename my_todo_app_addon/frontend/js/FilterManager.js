@@ -1,4 +1,5 @@
 import { DataManager } from "./DataManager.js";
+import { TaskManager } from './TaskManager.js';
 
 const FilterManager = {
 	filters: {

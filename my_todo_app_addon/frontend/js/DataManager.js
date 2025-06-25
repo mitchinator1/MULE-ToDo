@@ -1,8 +1,8 @@
 export const DataManager = {
 	state: {
 		tasks: [],
-		currentCategory: 'All',
-		categories: ['All', 'Work', 'Personal', 'Shopping', 'Health'],
+		currentCategory: { id: null, name: 'All' },
+		categories: [],
 		currentFilters: {
 			status: 'active',
 			priority: 'all',
@@ -13,6 +13,15 @@ export const DataManager = {
 
 	init: function () {
 		this.loadState();
+	},
+
+	async loadCategories() {
+		try {
+			const categories = await APIManager.get('/api/categories');
+			this.state.categories = [{ id: null, name: 'All' }, ...categories];
+		} catch (e) {
+			console.error('Failed to load categories:', e);
+		}
 	},
 
 	saveState: function () {
@@ -84,9 +93,9 @@ export const DataManager = {
 
 	getFilteredAndSortedTasks: function () {
 		const tasks = Array.isArray(this.state.tasks) ? this.state.tasks : [];
+		console.log('Current tasks:', tasks);
 		let filteredTasks = this.filterTasks(tasks);
-		const sortedTasks = this.sortTasks(filteredTasks);
-		return sortedTasks;
+		return this.sortTasks(filteredTasks);
 	},
 
 	filterTasks: function (tasks) {
@@ -97,7 +106,7 @@ export const DataManager = {
 		}
 		return tasks.filter(task => {
 			// Category filter
-			if (this.state.currentCategory !== 'All' && task.category !== this.state.currentCategory) {
+			if (this.state.currentCategory.name !== 'All' && task.categoryId !== this.state.currentCategory.id) {
 				return false;
 			}
 			// Status filter

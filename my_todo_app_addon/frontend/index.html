@@ -15,6 +15,9 @@
         <div id="categoryList" class="category-list">
             <!-- Categories will be dynamically added here -->
         </div>
+        <div class="sidebar-footer">
+            <button id="showCategoryForm" class="add-category-button">+</button>
+        </div>
     </div>
     <div id="mainContent" class="main-content">
         <div id="filterContainer" class="filter-container collapsed">
@@ -59,7 +62,7 @@
                 <input type="hidden" id="taskId" name="taskId">
                 <input type="hidden" id="parentTaskId" name="parentTaskId">
                 <div class="form-group inline-input-container">
-                    <input type="text" id="taskName" name="taskName" class="inline-input title-style" placeholder="Task Name" required>
+                    <input type="text" id="taskName" name="taskName" class="inline-input title-style" placeholder="Task Name" autocomplete="off" required>
                 </div>
                 <div class="form-group inline-input-container">
                     <textarea id="description" name="description" class="inline-input description-style" placeholder="Add description..." rows="1"></textarea>
@@ -94,6 +97,11 @@
                         </div>
                         <input type="hidden" id="priorityHidden" name="priority" value="Medium">
                     </div>
+                </div>
+                <div class="form-group form-row">
+                    <select id="taskCategory" name="taskCategory">
+                        <!-- dynamically populated -->
+                    </select>
                 </div>
                 <div class="form-group recurring-controls">
                     <div class="form-row">
@@ -234,6 +242,20 @@
                 </div>
                 <button type="submit" class="btn btn-primary" id="recurringFormSubmit">Update Recurring Pattern</button>
             </form>
+        </div>
+    </div>
+    <!-- Category Management Modal -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <span id="categoryModalClose" class="close-modal">&times;</span>
+            <h3>Manage Categories</h3>
+
+            <ul id="categoryModalList" class="category-list expanded"></ul>
+
+            <div class="new-category">
+                <input type="text" class="inline-input" id="newCategoryName" placeholder="New category name" />
+                <button id="addCategoryBtn" class="btn btn-primary">Add Category</button>
+            </div>
         </div>
     </div>
     <script type="module" src="./js/main.js"></script>

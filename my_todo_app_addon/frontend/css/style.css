@@ -91,6 +91,13 @@ body {
 	transform: rotate(-90deg);
 }
 
+.sidebar-footer {
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+	height: 32px;
+}
+
 /* Category List */
 .category-list {
 	display: flex;
@@ -419,6 +426,7 @@ body {
 	max-width: 500px;
 	margin: 25vh auto;
 	padding: 12px;
+	border: 1px solid #808080;
 	border-radius: 8px;
 	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
@@ -463,23 +471,27 @@ body {
 .form-group select {
 	width: 100%;
 	padding: 8px;
-	border: 1px solid #ddd;
+	border: 1px solid #ccc;
 	border-radius: 4px;
 	box-sizing: border-box;
 }
 
 .inline-input {
 	width: 100%;
-	border-top-width: 0;
-	border-left-width: 0;
-	border-right-width: 0;
-	border-bottom: 1px solid #ddd;
-	padding: 2px 4px;
+	border-top-width: 0 !important;
+	border-left-width: 0 !important;
+	border-right-width: 0 !important;
+	border-bottom: 1px solid #ccc !important;
+	border-radius: 0 !important;
+	padding: 2px 4px !important;
 	font-family: inherit;
-
-	background: transparent;
+	background: transparent !important;
 	box-sizing: border-box;
 	transition: border-color 0.2s;
+}
+
+.inline-input:hover {
+	border-bottom-color: #fff !important;
 }
 
 .inline-input:focus {
@@ -541,6 +553,23 @@ body {
 .weekday-options label {
 	margin-right: 20px;
 	cursor: pointer;
+}
+
+.category-list {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 16px;
+}
+
+.category-list li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+}
+
+.category-list input {
+    flex: 1;
+    margin-right: 6px;
 }
 
 /* Title styling */
@@ -750,6 +779,16 @@ body {
 .btn-delete {
 	background: #a70303;
 	color: white;
+}
+
+.saveCategoryBtn {
+	margin-right: 6px;
+	font-size: 1em;
+}
+
+.new-category {
+	display: flex;
+	gap: 6px;
 }
 
 /* Inline text editing */

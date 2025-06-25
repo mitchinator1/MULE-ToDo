@@ -39,8 +39,8 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
     icon: "mdi:calendar-check",
     device: { // Optional: Create a device in HA for your add-on
         identifiers: [`${ADDON_SLUG}_device`],
-        name: "My To-Do App",
-        model: "To-Do Add-on",
+        name: "MULE To-Do",
+        model: "MULE To-Do Add-on",
         manufacturer: "MULE",
         sw_version: process.env.ADDON_VERSION || "unknown" // Get version from HA supervisor environment if available
     }
@@ -459,6 +459,14 @@ app.get('/api/tasks/:id/history', (req, res) => {
     });
 });
 
+// GET all categories
+app.get('/api/categories', (req, res) => {
+    db.all('SELECT * FROM categories', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
 // POST a new task
 app.post('/api/tasks', (req, res) => {
     const dbFields = [];
@@ -676,6 +684,21 @@ app.post('/api/tasks/:id/redo', (req, res) => {
     });
 });
 
+// POST create a new category
+app.post('/api/categories', (req, res) => {
+    const { name, parent_id = null } = req.body;
+    if (!name) return res.status(400).json({ error: 'Category name is required' });
+
+    db.run(
+        `INSERT INTO categories (name, parent_id) VALUES (?, ?)`,
+        [name, parent_id],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.status(201).json({ id: this.lastID, name, parent_id });
+        }
+    );
+});
+
 // PUT/PATCH update an existing task
 app.put('/api/tasks/:id', (req, res) => {
     const { id } = req.params;
@@ -801,6 +824,21 @@ app.put('/api/tasks/:id', (req, res) => {
         });
 });
 
+// PUT update a category
+app.put('/api/categories/:id', (req, res) => {
+    const { id } = req.params;
+    const { name, parent_id = null } = req.body;
+
+    db.run(
+        `UPDATE categories SET name = ?, parent_id = ? WHERE id = ?`,
+        [name, parent_id, id],
+        function (err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id, name, parent_id });
+        }
+    );
+});
+
 // DELETE a task
 app.delete('/api/tasks/:id', (req, res) => {
 	const { id } = req.params;
@@ -826,6 +864,37 @@ app.delete('/api/tasks/:id', (req, res) => {
 			res.json({ message: 'Task deleted successfully', changes: this.changes });
 		});
 	});
+});
+
+// DELETE a category
+app.delete('/api/categories/:id', (req, res) => {
+    const { id } = req.params;
+
+    // Step 1: Nullify category references in tasks
+    db.run(`
+        UPDATE tasks SET category_id = NULL WHERE category_id = ?
+        `, [id], function (err) {
+        if (err) {
+            console.error('Error clearing category from tasks:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+
+        // Step 2: Delete the category itself
+        db.run(`
+            DELETE FROM categories WHERE id = ?
+            `, [id], function (err2) {
+            if (err2) {
+                console.error('Error deleting category:', err2.message);
+                return res.status(500).json({ error: err2.message });
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({ message: 'Category not found' });
+            }
+
+            res.json({ message: 'Category deleted successfully' });
+        });
+    });
 });
 
 // Global error handlers

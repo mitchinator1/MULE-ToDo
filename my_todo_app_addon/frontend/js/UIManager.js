@@ -1,6 +1,7 @@
 import { DataManager } from './DataManager.js';
 import { TaskManager } from './TaskManager.js';
 import { Snackbar, Throbber } from './UIHelpers.js';
+import APIManager from './APIManager.js';
 
 export const UIManager = {
 	elements: {},
@@ -29,7 +30,7 @@ export const UIManager = {
 	setupEventListeners: function () {
 		document.getElementById('recurringModalClose').addEventListener('click', this.hideRecurringEditForm);
 		document.getElementById('taskModalClose').addEventListener('click', this.hideTaskForm.bind(this));
-		document.getElementById('toggleFilters').addEventListener('click', this.toggleFilters.bind(this));
+		document.getElementById('toggleFilters').addEventListener('click', (e) => this.toggleFilters());
 
 		// Date Picker controls
 		document.getElementById('openDueDatePicker').addEventListener('click', (e) => this.editTaskDueDate(e, 'modal'));
@@ -156,36 +157,33 @@ export const UIManager = {
 		// Reset form
 		this.hideTaskForm();
 		// Clear ID fields
-		if (taskIdField)
-			taskIdField.value = '';
-		if (parentIdField)
-			parentIdField.value = parentId || '';
+		if (taskIdField) taskIdField.value = '';
+		if (parentIdField) parentIdField.value = parentId || '';
+
+		// Update form title and submit button text
+		if (formTitle) formTitle.textContent = parentId ? 'Add Subtask' : 'New Task';
+		if (submitButton) submitButton.textContent = parentId ? 'Add Subtask' : 'Add Task';
+
 		// Set default priority
 		const modalPriorityDisplay = document.getElementById('modalPriorityDisplay');
 		const priorityHidden = document.getElementById('priorityHidden');
 		const priorityElement = document.querySelector('#taskForm .priority');
-		if (modalPriorityDisplay)
-			modalPriorityDisplay.textContent = 'Medium';
-		if (priorityHidden)
-			priorityHidden.value = 'Medium';
-		if (priorityElement) {
-			priorityElement.className = 'priority priority-Medium';
-		}
-		// Update form title and submit button text
-		if (formTitle) {
-			formTitle.textContent = parentId ? 'Add Subtask' : 'New Task';
-		}
-		if (submitButton) {
-			submitButton.textContent = parentId ? 'Add Subtask' : 'Add Task';
 
-		}
+		// Update priority display and hidden input
+		if (modalPriorityDisplay) modalPriorityDisplay.textContent = 'Medium';
+		if (priorityHidden)	priorityHidden.value = 'Medium';
+		if (priorityElement) priorityElement.className = 'priority priority-Medium';
+
+		const categorySelect = document.getElementById('taskCategory');
+		categorySelect.innerHTML = DataManager.state.categories
+			.map(cat => `<option value="${cat.id}">${cat.name}</option>`)
+			.join('');
+
 		// Show the modal
 		this.elements.taskForm.style.display = 'block';
 		// Focus on task name input
 		const taskNameInput = document.getElementById('taskName');
-		if (taskNameInput) {
-			taskNameInput.focus();
-		}
+		if (taskNameInput) taskNameInput.focus();
 	},
 
 	hideTaskForm: function () {
@@ -337,15 +335,83 @@ export const UIManager = {
 		document.getElementById('recurringEditModal').style.display = 'none';
 	},
 
+	showCategoryForm: function () {
+		const modal = document.getElementById('categoryModal');
+        modal.style.display = 'block';
+        this.renderCategoryList();
+	},
+
+	async renderCategoryList() {
+        const list = document.getElementById('categoryModalList');
+        const categories = DataManager.state.categories.filter(c => c.id !== null); // exclude "All"
+
+        list.innerHTML = categories.map(cat => `
+            <li class="form-group" data-id="${cat.id}">
+                <input type="text" class="inline-input" value="${cat.name}" />
+                <button class="btn saveCategoryBtn">💾</button>
+                <button class="btn deleteCategoryBtn">🗑️</button>
+            </li>
+        `).join('');
+
+        list.querySelectorAll('.saveCategoryBtn').forEach(btn =>
+            btn.addEventListener('click', async e => {
+                const li = e.target.closest('li');
+                const id = parseInt(li.dataset.id);
+                const name = li.querySelector('input').value.trim();
+                if (!name) return;
+
+                try {
+                    const updated = await APIManager.updateCategory(id, { name });
+                    const category = DataManager.state.categories.find(c => c.id === id);
+                    if (category) category.name = updated.name;
+					UIManager.refreshCategoryDropdown?.();
+					UIManager.renderCategories(DataManager.state.categories);
+                } catch (err) {
+                    console.error('Failed to update category', err);
+                }
+            })
+        );
+
+        list.querySelectorAll('.deleteCategoryBtn').forEach(btn =>
+            btn.addEventListener('click', async e => {
+                const li = e.target.closest('li');
+                const id = parseInt(li.dataset.id);
+
+                try {
+                    await APIManager.deleteCategory(id);
+                    DataManager.state.categories = DataManager.state.categories.filter(c => c.id !== id);
+                    UIManager.refreshCategoryDropdown?.();
+					this.renderCategoryList(); // re-render
+					UIManager.renderCategories(DataManager.state.categories);
+                } catch (err) {
+                    console.error('Failed to delete category', err);
+                }
+            })
+        );
+	},
+
+	refreshCategoryDropdown() {
+		const select = document.getElementById('taskCategory');
+		if (!select) return;
+
+		select.innerHTML = DataManager.state.categories.map(c =>
+			`<option value="${c.id ?? ''}">${c.name}</option>`
+		).join('');
+	},
+
+	hideCategoryForm: function () {
+		document.getElementById('categoryModal').style.display = 'none';
+	},
+
 	createTaskElement: function (task) {
-		let recurringData = {};
+		let recurringData = null;
 
 		if (task.recurring) {
 			if (typeof task.recurring === 'string') {
 				try {
-				recurringData = JSON.parse(task.recurring);
+					recurringData = JSON.parse(task.recurring);
 				} catch {
-				recurringData = {};
+					recurringData = null;
 				}
 			} else if (typeof task.recurring === 'object') {
 				recurringData = task.recurring;
@@ -728,9 +794,9 @@ export const UIManager = {
 		categories.forEach(category => {
 			const categoryItem = document.createElement('div');
 			categoryItem.className = 'category-item';
-			categoryItem.innerHTML = `<span class="category-text">${category}</span>`;
+			categoryItem.innerHTML = `<span class="category-text">${category.name}</span>`;
 			categoryItem.onclick = () => TaskManager.selectCategory(category);
-			if (category === DataManager.state.currentCategory) {
+			if (category.name === DataManager.state.currentCategory.name) {
 				categoryItem.classList.add('active');
 			}
 			categoryList.appendChild(categoryItem);
@@ -739,7 +805,7 @@ export const UIManager = {
 
 	updateCategorySelection: function (category) {
 		document.querySelectorAll('.category-item').forEach(item => {
-			item.classList.toggle('active', item.textContent.trim() === category);
+			item.classList.toggle('active', item.textContent.trim() === category.name);
 		});
 	},
 
@@ -1121,9 +1187,9 @@ export const UIManager = {
 	},
 
 	toggleFilters: function () {
-		this.filterContainer.classList.toggle('expanded');
+		this.elements.filterContainer.classList.toggle('expanded');
 		const toggleButton = document.getElementById('toggleFilters');
-		toggleButton.textContent = filterContainer.classList.contains('expanded') ? 'Filters ▲' : 'Filters ▼';
+		toggleButton.textContent = this.elements.filterContainer.classList.contains('expanded') ? 'Filters ▲' : 'Filters ▼';
 	},
 
 };
