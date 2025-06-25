@@ -84,7 +84,6 @@ export const DataManager = {
 
 	getFilteredAndSortedTasks: function () {
 		const tasks = Array.isArray(this.state.tasks) ? this.state.tasks : [];
-		console.log('Current tasks:', tasks);
 		let filteredTasks = this.filterTasks(tasks);
 		const sortedTasks = this.sortTasks(filteredTasks);
 		return sortedTasks;

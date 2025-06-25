@@ -28,8 +28,8 @@ export const UIManager = {
 
 	setupEventListeners: function () {
 		document.getElementById('recurringModalClose').addEventListener('click', this.hideRecurringEditForm);
-		document.getElementById('taskModalClose').addEventListener('click', this.hideTaskForm);
-		document.getElementById('toggleFilters').addEventListener('click', this.toggleFilters);
+		document.getElementById('taskModalClose').addEventListener('click', this.hideTaskForm.bind(this));
+		document.getElementById('toggleFilters').addEventListener('click', this.toggleFilters.bind(this));
 
 		// Date Picker controls
 		document.getElementById('openDueDatePicker').addEventListener('click', (e) => this.editTaskDueDate(e, 'modal'));
@@ -249,8 +249,6 @@ export const UIManager = {
 	},
 
 	populateRecurringEditForm: function (recurringData) {
-		console.log('Populating recurring edit form with data:', recurringData);
-
 		const patternSelect = document.getElementById('editRecurringPattern');
 		const customRepeatDiv = document.querySelector('#recurringEditModal .custom-repeat');
 		const weeklyDaysDiv = document.querySelector('#recurringEditModal .weekly-days');
@@ -703,8 +701,6 @@ export const UIManager = {
 			}
 
 			// Update recurring indicator data
-			console.log("Updated task recurring object:", updatedTask.recurring);
-
 			const recurringData = JSON.stringify(updatedTask.recurring);
 			recurringIndicator.setAttribute('data-recurring', recurringData);
 			recurringIndicator.setAttribute('title', this.getRecurringDescription(updatedTask.recurring));
@@ -757,8 +753,6 @@ export const UIManager = {
 	},
 
 	renderTaskList: function (tasks) {
-		console.log('Rendering task list with tasks:', tasks);
-
 		if (!this.elements.taskList) {
 			console.error('Task list element not found');
 			return;
@@ -852,7 +846,6 @@ export const UIManager = {
 	},
 
 	addTaskToUI: function (task) {
-		console.log('Adding task to UI:', task);
 		const taskElement = document.createElement('div');
 		taskElement.className = `task-container category-${task.category || 'none'}`;
 		taskElement.setAttribute('data-task-id', task.id);
@@ -1128,11 +1121,9 @@ export const UIManager = {
 	},
 
 	toggleFilters: function () {
-		const filterContainer = document.getElementById('filterContainer');
+		this.filterContainer.classList.toggle('expanded');
 		const toggleButton = document.getElementById('toggleFilters');
-		filterContainer.classList.toggle('expanded');
-		toggleButton.textContent = filterContainer.classList.contains('expanded') ? 'Filters ▲' :
-			'Filters ▼';
+		toggleButton.textContent = filterContainer.classList.contains('expanded') ? 'Filters ▲' : 'Filters ▼';
 	},
 
 };

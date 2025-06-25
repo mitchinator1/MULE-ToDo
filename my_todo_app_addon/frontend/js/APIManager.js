@@ -33,7 +33,6 @@ const APIManager = {
     },
 
     getTasks: async function () {
-        console.log('Fetching tasks...');
         return this._fetch(`${API_BASE_URL}/tasks`, {
             method: 'GET'
         });
