@@ -2,6 +2,7 @@ import { UIManager } from './UIManager.js';
 import { DataManager } from './DataManager.js';
 import { TaskManager } from './TaskManager.js';
 import APIManager from './APIManager.js';
+import { createSVG } from './SVGIcons.js';
 
 export const ModalManager = {
     elements: {},
@@ -14,10 +15,20 @@ export const ModalManager = {
             recurringEditModal: document.getElementById('recurringEditModal'),
             categoryModal: document.getElementById('categoryModal'),
             modalPriorityDisplay: document.getElementById('modalPriorityDisplay'),
+            modalDatePickerDropdown: document.getElementById('modalDatePickerDropdown'),
+            modalDateInput: document.getElementById('dueDate'),
+            modalPriorityDropdown: document.getElementById('modalPriorityDropdown'),
             priorityHidden: document.getElementById('priorityHidden'),
+            openDueDatePicker: document.getElementById('openDueDatePicker'),
             modalDueDateDisplay: document.getElementById('modalDueDateDisplay'),
             recurringPattern: document.getElementById('recurringPattern'),
             recurringOptions: document.querySelector('.recurring-options'),
+            taskFormMonthlyDay: document.getElementById('monthlyDay'),
+            taskFormByMonthDay: document.getElementById('byMonthDay'),
+            taskFormCustomRepeat: document.getElementById('customRepeat'),
+            taskFormWeeklyDays: document.getElementById('weeklyDays'),
+            taskFormOccurenceCount: document.getElementById('occurenceCount'),
+            taskFormEndDate: document.getElementById('endDate'),
             taskNameInput: document.getElementById('taskName'),
             taskCategorySelect: document.getElementById('taskCategory'),
             newCategoryNameInput: document.getElementById('newCategoryName'),
@@ -30,14 +41,27 @@ export const ModalManager = {
         document.getElementById('categoryModalClose').addEventListener('click', this.hideCategoryForm.bind(this));
 
         // Date Picker controls for the main task modal
-        document.getElementById('openDueDatePicker').addEventListener('click', (e) => this.toggleDueDateDropdown(e));
-        document.getElementById('quickDateClear').addEventListener('click', (e) => this.clearDueDate(e));
-        document.getElementById('quickDateToday').addEventListener('click', (e) => this.setQuickDate(e, 'today'));
-        document.getElementById('quickDateTomorrow').addEventListener('click', (e) => this.setQuickDate(e, 'tomorrow'));
-        document.getElementById('quickDateNextWeek').addEventListener('click', (e) => this.setQuickDate(e, 'nextWeek'));
+        if (this.elements.openDueDatePicker) { // Check if the display element exists
+            this.elements.openDueDatePicker.addEventListener('click', (e) => this.toggleDueDateDropdown(e)); // Attach to the display span
+            this.elements.modalDatePickerDropdown.querySelector('#quickDateClear').addEventListener('click', (e) => this.clearDueDate(e));
+            this.elements.modalDatePickerDropdown.querySelector('#quickDateToday').addEventListener('click', (e) => this.setQuickDate(e, 'today'));
+            this.elements.modalDatePickerDropdown.querySelector('#quickDateTomorrow').addEventListener('click', (e) => this.setQuickDate(e, 'tomorrow'));
+            this.elements.modalDatePickerDropdown.querySelector('#quickDateNextWeek').addEventListener('click', (e) => this.setQuickDate(e, 'nextWeek'));
+            this.elements.modalDateInput.addEventListener('change', (e) => this.updateDueDate(e)); // Attach to the date input
+        }
 
         // Priority Picker controls for the main task modal
-        document.getElementById('openPriorityPicker').addEventListener('click', (e) => this.togglePriorityDropdown(e));
+        if (this.elements.modalPriorityDisplay) { // This is the span inside #openPriorityPicker
+            this.elements.taskFormModal.querySelector('#openPriorityPicker').addEventListener('click', (e) => this.togglePriorityDropdown(e));
+            // Attach listeners to priority options within the modal
+            this.elements.modalPriorityDropdown.querySelectorAll('.priority-option').forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent click from bubbling up and closing the dropdown immediately
+                    const priority = e.target.textContent.trim();
+                    this.updatePriorityDisplay(priority); // Update UI and hidden input
+                });
+            });
+        }
 
         // Category Modal controls
         document.getElementById('showCategoryForm').addEventListener('click', () => this.showCategoryForm());
@@ -45,7 +69,7 @@ export const ModalManager = {
     },
 
     // --- Task Form Modal (Add/Edit Task) ---
-    showTaskForm: function (parentId = null) {
+    showTaskForm: function (taskIdToEdit = null, parentIdForNew = null) {
         const formTitle = this.elements.taskFormModal.querySelector('h3');
         const submitButton = this.elements.taskFormModal.querySelector('#taskFormSubmit');
         const parentIdField = this.elements.taskFormModal.querySelector('#parentTaskId');
@@ -53,39 +77,117 @@ export const ModalManager = {
 
         // Reset form and clear ID fields
         this.hideTaskForm();
-        if (taskIdField) taskIdField.value = '';
-        if (parentIdField) parentIdField.value = parentId || '';
-
-        // Update form title and submit button text based on context
-        if (formTitle) formTitle.textContent = parentId ? 'Add Subtask' : 'New Task';
-        if (submitButton) submitButton.textContent = parentId ? 'Add Subtask' : 'Add Task';
-
-        // Set default priority for new tasks
-        const defaultPriority = 'Medium';
-        if (this.elements.modalPriorityDisplay) this.elements.modalPriorityDisplay.textContent = defaultPriority;
-        if (this.elements.priorityHidden) this.elements.priorityHidden.value = defaultPriority;
-        const priorityElement = this.elements.taskFormModal.querySelector('.priority');
-        if (priorityElement) priorityElement.className = `priority priority-${defaultPriority}`;
 
         // Populate category dropdown with current categories from DataManager
         this.elements.taskCategorySelect.innerHTML = DataManager.state.categories
             .map(cat => `<option value="${cat.id ?? ''}">${cat.name}</option>`)
             .join('');
 
+        if (taskIdToEdit) {
+            // --- EDIT MODE ---
+            const task = DataManager.getTaskById(taskIdToEdit);
+            if (!task) {
+                console.error('Task not found for editing:', taskIdToEdit);
+                UIManager.showErrorMessage('Task not found for editing.', 'error');
+                return;
+            }
+
+            if (formTitle) formTitle.textContent = 'Edit Task';
+            if (submitButton) submitButton.textContent = 'Save Changes';
+            if (taskIdField) taskIdField.value = taskIdToEdit;
+            if (parentIdField) parentIdField.value = task.parentTaskId || '';
+
+            this.prepopulateTaskForm(task);
+
+        } else {
+            // --- ADD MODE ---
+            if (formTitle) formTitle.textContent = parentIdForNew ? 'Add Subtask' : 'New Task';
+            if (submitButton) submitButton.textContent = parentIdForNew ? 'Add Subtask' : 'Add Task';
+            if (taskIdField) taskIdField.value = '';
+            if (parentIdField) parentIdField.value = parentIdForNew || '';
+
+            // Set defaults for a new task
+            const defaultPriority = 'Medium';
+            this.updatePriorityDisplay(defaultPriority);
+            this.elements.modalDueDateDisplay.textContent = 'None';
+            this.populateTaskFormRecurringFields({}); // Reset recurring fields for new task
+        }
+
         // Display the modal and focus on the task name input
         this.elements.taskFormModal.style.display = 'block';
         if (this.elements.taskNameInput) this.elements.taskNameInput.focus();
     },
+
     prepopulateTaskForm: function (task) {
 		this.elements.taskNameInput.value = task.title;
 		this.elements.taskFormModal.querySelector('#description').value = task.description;
 		this.elements.taskFormModal.querySelector('#dueDate').value = task.dueDate;
-		this.elements.modalDueDateDisplay.textContent = UIManager.formatDateForDisplay(task.dueDate);
+		this.elements.modalDueDateDisplay.textContent = task.dueDate ? UIManager.formatDateForDisplay(task.dueDate).slice(5) : 'None';
 		const priority = task.priority || 'Medium';
 		this.updatePriorityDisplay(priority);
 		this.elements.taskCategorySelect.value = task.categoryId || '';
-		// Recurring pattern?
-	},
+		this.populateTaskFormRecurringFields(task.recurring || {});
+    },
+
+    populateTaskFormRecurringFields: function (recurringData) {
+        // Reset all recurring fields to default "none" state first
+        this.elements.recurringPattern.value = 'none';
+        this.elements.recurringOptions.style.display = 'none';
+        this.elements.taskFormCustomRepeat.style.display = 'none';
+        this.elements.taskFormWeeklyDays.style.display = 'none';
+        this.elements.taskFormMonthlyDay.style.display = 'none'; // Reset monthly day visibility
+        this.elements.taskFormByMonthDay.value = ''; // Reset monthly day input
+        this.elements.taskFormOccurenceCount.value = 1;
+        this.elements.taskFormOccurenceCount.disabled = true;
+        this.elements.taskFormEndDate.value = '';
+        this.elements.taskFormEndDate.disabled = true;
+        this.elements.taskFormModal.querySelectorAll('input[name="recurringEnd"]').forEach(radio => {
+            if (radio.value === 'never') radio.checked = true;
+        });
+        this.elements.taskFormModal.querySelectorAll('.weekday-checkbox').forEach(cb => cb.checked = false);
+
+        if (!recurringData || !recurringData.frequency || recurringData.frequency === 'none') {
+            return; // No recurring data or 'none', so reset is enough
+        }
+
+        // Populate form fields with existing recurring data
+        this.elements.recurringPattern.value = recurringData.frequency;
+        this.elements.recurringOptions.style.display = 'flex';
+
+        // Show/hide specific sections based on frequency
+        this.elements.taskFormCustomRepeat.style.display = recurringData.frequency === 'custom' ? 'block' : 'none';
+        this.elements.taskFormWeeklyDays.style.display = (recurringData.frequency === 'weekly' || recurringData.frequency === 'weekday') ? 'block' : 'none';
+        this.elements.taskFormMonthlyDay.style.display = recurringData.frequency === 'monthly' ? 'block' : 'none'; // Show/hide monthly day
+
+        if (recurringData.frequency === 'custom' && recurringData.interval) {
+            this.elements.taskFormModal.querySelector('#customInterval').value = recurringData.interval.value || 1;
+            this.elements.taskFormModal.querySelector('#customUnit').value = recurringData.interval.unit || 'days';
+        }
+
+        if (recurringData.by_day) {
+            const days = recurringData.by_day.split(',');
+            this.elements.taskFormModal.querySelectorAll('.weekday-checkbox').forEach(cb => {
+                cb.checked = days.includes(cb.value);
+            });
+        }
+
+        if (recurringData.by_month_day) {
+            this.elements.taskFormByMonthDay.value = recurringData.by_month_day; // Populate by_month_day
+        }
+
+        const endType = recurringData.end ? recurringData.end.type : 'never';
+        this.elements.taskFormModal.querySelectorAll('input[name="recurringEnd"]').forEach(radio => {
+            if (radio.value === endType) radio.checked = true;
+        });
+
+        if (endType === 'after') {
+            this.elements.taskFormOccurenceCount.disabled = false;
+            this.elements.taskFormOccurenceCount.value = parseInt(recurringData.end.after_occurrences) || 1;
+        } else if (endType === 'on') {
+            this.elements.taskFormEndDate.disabled = false;
+            this.elements.taskFormEndDate.value = recurringData.end.date || '';
+        }
+    },
 
     hideTaskForm: function () {
         // Hide the modal and reset the form
@@ -107,6 +209,21 @@ export const ModalManager = {
         // Reset recurring options display
         if (this.elements.recurringPattern) this.elements.recurringPattern.value = 'none';
         if (this.elements.recurringOptions) this.elements.recurringOptions.style.display = 'none';
+        if (this.elements.taskFormCustomRepeat) this.elements.taskFormCustomRepeat.style.display = 'none';
+        if (this.elements.taskFormMonthlyDay) this.elements.taskFormMonthlyDay.style.display = 'none'; // Reset monthly day visibility
+        if (this.elements.taskFormByMonthDay) this.elements.taskFormByMonthDay.value = ''; // Reset monthly day input
+        if (this.elements.taskFormWeeklyDays) this.elements.taskFormWeeklyDays.style.display = 'none';
+        if (this.elements.taskFormOccurenceCount) {
+            this.elements.taskFormOccurenceCount.value = 1;
+            this.elements.taskFormOccurenceCount.disabled = true;
+        }
+        if (this.elements.taskFormEndDate) {
+            this.elements.taskFormEndDate.value = '';
+            this.elements.taskFormEndDate.disabled = true;
+        }
+        this.elements.taskFormModal.querySelectorAll('input[name="recurringEnd"]').forEach(radio => {
+            if (radio.value === 'never') radio.checked = true;
+        });
     },
 
     // --- Recurring Edit Modal ---
@@ -220,16 +337,20 @@ export const ModalManager = {
 
     // Setup for recurring controls in the main task form
     setupRecurringControls: function () {
-        const patternSelect = document.getElementById('recurringPattern');
-        const recurringOptions = document.querySelector('.recurring-options');
-        const customRepeatDiv = document.querySelector('.custom-repeat');
+        const patternSelect = this.elements.recurringPattern;
+        const recurringOptions = this.elements.recurringOptions;
+        const customRepeatDiv = this.elements.taskFormCustomRepeat;
+        const monthlyDayDiv = this.elements.taskFormMonthlyDay; // Get reference to monthly day div
+        const weeklyDaysDiv = this.elements.taskFormWeeklyDays;
         const endTypeRadios = document.getElementsByName('recurringEnd');
         const occurenceCount = document.getElementById('occurenceCount');
         const endDate = document.getElementById('endDate');
 
         patternSelect.addEventListener('change', (e) => {
+            monthlyDayDiv.style.display = e.target.value === 'monthly' ? 'block' : 'none'; // Show/hide monthly day
             const showRecurringOptions = e.target.value !== 'none';
-            recurringOptions.style.display = showRecurringOptions ? 'block' : 'none';
+            weeklyDaysDiv.style.display = (e.target.value === 'weekly' || e.target.value === 'weekday') ? 'block' : 'none';
+            recurringOptions.style.display = showRecurringOptions ? 'flex' : 'none';
             customRepeatDiv.style.display = e.target.value === 'custom' ? 'block' : 'none';
         });
 
@@ -248,6 +369,17 @@ export const ModalManager = {
         });
     },
 
+    updateDueDate: function (event) {
+        event.stopPropagation();
+        const newDueDate = event.target.value;
+        this.updateDueDateDisplay(newDueDate);
+    },
+
+    updatePriority: function (event, priority) {
+        event.stopPropagation();
+        this.updatePriorityDisplay(priority);
+    },
+
     // Setup for recurring controls in the recurring edit modal
     setupRecurringEditControls: function (handlers) {
         const patternSelect = document.getElementById('editRecurringPattern');
@@ -260,7 +392,7 @@ export const ModalManager = {
 
         if (patternSelect) {
             patternSelect.addEventListener('change', (e) => {
-                recurringOptionsDiv.style.display = e.target.value === 'none' ? 'none' : 'block';
+                recurringOptionsDiv.style.display = e.target.value === 'none' ? 'none' : 'flex';
                 customRepeatDiv.style.display = e.target.value === 'custom' ? 'block' : 'none';
 
                 const val = e.target.value;
@@ -287,12 +419,9 @@ export const ModalManager = {
 
     // --- Date Picker (within modal or task item) ---
     toggleDueDateDropdown: function (event) {
+        event.stopPropagation();
         const container = event.currentTarget.closest('.due-date-container');
-        const dropdown = container.querySelector('.date-picker-dropdown');
-        // Close any other open dropdowns to prevent multiple open pickers
-        document.querySelectorAll('.date-picker-dropdown').forEach(d => {
-            if (d !== dropdown) d.style.display = 'none';
-        });
+        const dropdown = this.elements.modalDatePickerDropdown;
 
         // Toggle display of the current dropdown
         dropdown.style.display = dropdown.style.display === 'none' ? 'flex' : 'none';
@@ -331,12 +460,13 @@ export const ModalManager = {
     },
 
     updateDueDateDisplay: function (newDate) {
-		const container = document.querySelector('#taskForm .due-date-container');
-		if (!container) return;
+		const dropdown = this.elements.modalDatePickerDropdown;
+		const dateInput = this.elements.modalDateInput;
+		const displayElement = this.elements.modalDueDateDisplay;
 
-		const dropdown = container.querySelector('.date-picker-dropdown');
-		const dateInput = dropdown.querySelector('.date-input');
-		const displayElement = document.getElementById('modalDueDateDisplay');
+        if (!dropdown || !dateInput || !displayElement) {
+            return; // Elements not found, likely not in the modal context
+        }
 
 		displayElement.textContent = UIManager.formatDateForDisplay(newDate);
 		dateInput.value = newDate;
@@ -349,17 +479,11 @@ export const ModalManager = {
     togglePriorityDropdown: function (event) {
         event.stopPropagation();
         const container = event.currentTarget.closest('.priority-container');
-        const dropdown = container.querySelector('.priority-dropdown');
-
-        // Ensure dropdown has initial display style set to 'none' if not already
-        if (!dropdown.style.display) {
-            dropdown.style.display = 'none';
-        }
+        const dropdown = this.elements.modalPriorityDropdown;
 
         // Close any other open priority dropdowns
         document.querySelectorAll('.priority-dropdown').forEach(d => {
-            if (d !== dropdown)
-                d.style.display = 'none';
+            if (d !== dropdown) d.style.display = 'none';
         });
         // Toggle display of the current dropdown
         dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
@@ -379,13 +503,13 @@ export const ModalManager = {
     },
 
     updatePriorityDisplay: function (priority) {
-		const container = document.querySelector('#taskForm .priority-container');
-		if (!container) return;
+		const container = this.elements.taskFormModal.querySelector('.priority-container');
+		if (!container) return; // Ensure we are in the modal context
 
-		const priorityElement = container.querySelector('.priority');
-		const dropdown = container.querySelector('.priority-dropdown');
-		const displayElement = document.getElementById('modalPriorityDisplay');
-		const priorityHidden = document.getElementById('priorityHidden');
+		const priorityElement = container.querySelector('.priority'); // Get the display element within the modal
+		const dropdown = container.querySelector('.priority-dropdown'); // Get the dropdown within the modal
+		const displayElement = this.elements.modalPriorityDisplay;
+		const priorityHidden = this.elements.priorityHidden;
 
 		if (displayElement) displayElement.textContent = priority;
 		if (priorityHidden) priorityHidden.value = priority;
@@ -400,6 +524,7 @@ export const ModalManager = {
 
     // --- Category Modal ---
     showCategoryForm: function () {
+        UIManager.showThrobber('Loading categories');
         this.elements.categoryModal.style.display = 'block';
         this.renderCategoryList(); // Render the list of categories inside the modal
     },
@@ -411,8 +536,8 @@ export const ModalManager = {
         list.innerHTML = categories.map(cat => `
             <li class="form-group" data-id="${cat.id}">
                 <input type="text" class="inline-input" value="${cat.name}" />
-                <button class="btn saveCategoryBtn">💾</button>
-                <button class="btn deleteCategoryBtn">🗑️</button>
+                <button class="btn saveCategoryBtn" title="Save Category">${createSVG('save', 20, 20, 'save-svg')}</button>
+                <button class="btn deleteCategoryBtn" title="Delete Category">${createSVG('delete', 20, 20, 'delete-svg')}</button>
             </li>
         `).join('');
 
@@ -425,6 +550,7 @@ export const ModalManager = {
                 if (!name) return;
 
                 try {
+                    UIManager.showThrobber('Updating category');
                     const updated = await APIManager.updateCategory(id, { name });
                     const category = DataManager.state.categories.find(c => c.id === id);
                     if (category) category.name = updated.name; // Update DataManager state
@@ -433,6 +559,8 @@ export const ModalManager = {
                 } catch (err) {
                     console.error('Failed to update category', err);
                     UIManager.showErrorMessage(err, 'updating category');
+                } finally {
+                    UIManager.hideThrobber('Updating category');
                 }
             })
         );
@@ -444,6 +572,7 @@ export const ModalManager = {
                 const id = parseInt(li.dataset.id);
 
                 try {
+                    UIManager.showThrobber('Deleting category');
                     await APIManager.deleteCategory(id);
                     DataManager.state.categories = DataManager.state.categories.filter(c => c.id !== id); // Update DataManager state
                     UIManager.refreshCategoryDropdown(); // Refresh the category dropdown in the task form
@@ -452,9 +581,13 @@ export const ModalManager = {
                 } catch (err) {
                     console.error('Failed to delete category', err);
                     UIManager.showErrorMessage(err, 'deleting category');
+                } finally {
+                    UIManager.hideThrobber('Deleting category');
                 }
             })
         );
+
+        UIManager.hideThrobber('Loading categories');
     },
 
     handleAddCategory: async function () {
@@ -462,6 +595,7 @@ export const ModalManager = {
         if (!name) return;
 
         try {
+            UIManager.showThrobber('Adding category');
             const category = await APIManager.addCategory({ name });
             DataManager.state.categories.push(category); // Add to DataManager state
             UIManager.refreshCategoryDropdown(); // Refresh the category dropdown in the task form
@@ -471,6 +605,8 @@ export const ModalManager = {
         } catch (err) {
             console.error('Failed to add category', err);
             UIManager.showErrorMessage(err, 'adding category');
+        } finally {
+            UIManager.hideThrobber('Adding category');
         }
     },
 

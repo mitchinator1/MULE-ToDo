@@ -36,12 +36,10 @@ export const UIManager = {
 	},
 
 	setupRecurringControls: function (handlers) {
-		// Delegate to ModalManager
 		ModalManager.setupRecurringControls(handlers);
 	},
 
 	setupRecurringEditControls: function (handlers) {
-		// Delegate to ModalManager
 		ModalManager.setupRecurringEditControls(handlers);
 	},
 
@@ -102,55 +100,6 @@ export const UIManager = {
 		ModalManager.showCategoryForm();
 	},
 
-	async renderCategoryList() {
-        const list = document.getElementById('categoryModalList');
-        const categories = DataManager.state.categories.filter(c => c.id !== null); // exclude "All"
-
-        list.innerHTML = categories.map(cat => `
-            <li class="form-group" data-id="${cat.id}">
-                <input type="text" class="inline-input" value="${cat.name}" />
-                <button class="btn saveCategoryBtn">💾</button>
-                <button class="btn deleteCategoryBtn">🗑️</button>
-            </li>
-        `).join('');
-
-        list.querySelectorAll('.saveCategoryBtn').forEach(btn =>
-            btn.addEventListener('click', async e => {
-                const li = e.target.closest('li');
-                const id = parseInt(li.dataset.id);
-                const name = li.querySelector('input').value.trim();
-                if (!name) return;
-
-                try {
-                    const updated = await APIManager.updateCategory(id, { name });
-                    const category = DataManager.state.categories.find(c => c.id === id);
-                    if (category) category.name = updated.name; // Update DataManager state
-					UIManager.refreshCategoryDropdown(); // Refresh main dropdown
-					UIManager.renderCategories(DataManager.state.categories);
-                } catch (err) {
-                    console.error('Failed to update category', err);
-                }
-            })
-        );
-
-        list.querySelectorAll('.deleteCategoryBtn').forEach(btn =>
-            btn.addEventListener('click', async e => {
-                const li = e.target.closest('li');
-                const id = parseInt(li.dataset.id);
-
-                try {
-                    await APIManager.deleteCategory(id);
-                    DataManager.state.categories = DataManager.state.categories.filter(c => c.id !== id); // Update DataManager state
-                    UIManager.refreshCategoryDropdown(); // Refresh main dropdown
-					this.renderCategoryList(); // re-render
-					UIManager.renderCategories(DataManager.state.categories);
-                } catch (err) {
-                    console.error('Failed to delete category', err);
-                }
-            })
-        );
-	},
-
 	refreshCategoryDropdown() {
 		const select = document.getElementById('taskCategory'); // This is the select in the task form modal
 		if (!select) return;
@@ -159,13 +108,12 @@ export const UIManager = {
 			`<option value="${c.id ?? ''}">${c.name}</option>`
 		).join('');
 	},
-	// This function is called by ModalManager.hideCategoryForm
+
 	hideCategoryForm: function () {
 		document.getElementById('categoryModal').style.display = 'none';
 	},
 
 	createTaskElement: function (task) {
-		// Delegate to TaskRenderer
 		return TaskRenderer.createTaskElement(task);
 	},
 
@@ -196,6 +144,7 @@ export const UIManager = {
 			setTimeout(() => this.updateParentContainers(subtasksContainer), 0);
 		}
 	},
+
 	deleteTaskElement: function (taskId) {
 		const taskElement = document.querySelector(`.task-container[data-task-id="${taskId}"]`);
 		if (!taskElement) return;
@@ -347,6 +296,7 @@ export const UIManager = {
 			parent = parent.parentElement;
 		}
 	},
+
 	addTaskToUI: function (task) {
 		const taskElement = document.createElement('div');
 		taskElement.className = `task-container category-${task.category || 'none'}`;

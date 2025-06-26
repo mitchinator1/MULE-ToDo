@@ -73,7 +73,7 @@
                         <div id="openDueDatePicker" class="due-date">
                             <span id="modalDueDateDisplay">None</span>
                         </div>
-                        <div class="date-picker-dropdown" style="display: none;">
+                        <div id="modalDatePickerDropdown" class="date-picker-dropdown" style="display: none;">
                             <div class="date-picker-header">
                                 <span id="quickDateClear" class="clear-date">Clear</span>
                                 <span class="quick-dates">
@@ -90,7 +90,7 @@
                         <div id="openPriorityPicker" class="priority priority-Medium">
                             <span id="modalPriorityDisplay">Medium</span>
                         </div>
-                        <div class="priority-dropdown">
+                        <div id="modalPriorityDropdown" class="priority-dropdown" style="display: none;">
                             <div class="priority-option priority-Low">Low</div>
                             <div class="priority-option priority-Medium">Medium</div>
                             <div class="priority-option priority-High">High</div>
@@ -120,6 +120,24 @@
                         </div>
                     </div>
                     <div class="recurring-options" style="display: none;">
+                        <!-- Weekly Days for main form -->
+                        <div id="weeklyDays" class="form-group weekly-days" style="display: none;">
+                            <label>Repeat on</label>
+                            <div class="weekday-options">
+                                <label><input type="checkbox" class="weekday-checkbox" value="MO"> Mon</label>
+                                <label><input type="checkbox" class="weekday-checkbox" value="TU"> Tue</label>
+                                <label><input type="checkbox" class="weekday-checkbox" value="WE"> Wed</label>
+                                <label><input type="checkbox" class="weekday-checkbox" value="TH"> Thu</label>
+                                <label><input type="checkbox" class="weekday-checkbox" value="FR"> Fri</label>
+                                <label><input type="checkbox" class="weekday-checkbox" value="SA"> Sat</label>
+                                <label><input type="checkbox" class="weekday-checkbox" value="SU"> Sun</label>
+                            </div>
+                        </div>
+                        <!-- Monthly Day for main form -->
+                        <div id="monthlyDay" class="form-group monthly-day" style="display: none;">
+                            <label for="byMonthDay">Day of month</label>
+                            <input type="number" id="byMonthDay" min="1" max="31">
+                        </div>
                         <div class="form-row">
                             <div class="form-group end-group">
                                 <label>Ends</label>
@@ -145,7 +163,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="form-group custom-repeat" style="display: none;">
+                            <div id="customRepeat"class="form-group custom-repeat" style="display: none;">
                                 <label for="customInterval">Repeat every</label>
                                 <div class="custom-repeat-input">
                                     <input type="number" id="customInterval" min="1" max="99" value="1">

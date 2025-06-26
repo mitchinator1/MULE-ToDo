@@ -1,8 +1,7 @@
 import { DataManager } from './DataManager.js';
 import { TaskManager } from './TaskManager.js';
 import { ModalManager } from './ModalManager.js';
-
-const RECURRING_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="recurring-svg"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>`;
+import { createSVG } from './SVGIcons.js';
 
 // This object is responsible for creating, updating, and managing interactions
 // for individual task elements in the DOM.
@@ -75,8 +74,8 @@ export const TaskRenderer = {
 		// Recurring icon (if applicable)
 		if (taskData.recurring && Object.keys(taskData.recurring).length > 0) {
 			const recurringIndicator = document.createElement('span');
-			recurringIndicator.className = 'recurring-indicator';
-			recurringIndicator.innerHTML = RECURRING_ICON_SVG;
+			recurringIndicator.className = 'recurring-indicator recurring-svg';
+			recurringIndicator.innerHTML = createSVG('recurring', 18, 18, 'recurring-svg');
 			recurringIndicator.title = this.UIManager.getRecurringDescription(taskData.recurring);
 			recurringIndicator.dataset.recurring = JSON.stringify(taskData.recurring); // Store raw data for modal
 			recurringIndicator.addEventListener('click', (e) => ModalManager.showRecurringEditForm(taskData.id, e));
@@ -186,29 +185,67 @@ export const TaskRenderer = {
 
 		// --- 3. Task Actions Footer ---
 		const actionsFooter = document.createElement('div');
-		actionsFooter.className = 'task-actions-footer flex-right';
+		actionsFooter.className = 'task-actions-footer';
 
-		// Edit button
-		const editBtn = document.createElement('button');
-		editBtn.className = 'btn edit-button';
-		editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
-		editBtn.addEventListener('click', () => ModalManager.showTaskForm(taskData.id));
-		actionsFooter.appendChild(editBtn);
+		// Details Toggle Button
+		const detailsToggleBtn = document.createElement('button');
+		detailsToggleBtn.className = 'details-toggle-btn';
+		detailsToggleBtn.innerHTML = createSVG('details', 18, 18, 'details-arrow-svg') + '<span>Details</span>';
+		actionsFooter.appendChild(detailsToggleBtn);
+
+		const seperator = document.createElement('span');
+		seperator.className = 'seperator';
+		seperator.innerHTML = createSVG('separator', 22, 22, 'separator-svg');
+		actionsFooter.appendChild(seperator);
 
 		// "Add Subtask" button
-		const addBtn = document.createElement('button'); addBtn.className = 'btn';
-		addBtn.textContent = 'Add Subtask'; // Text for the button
-		addBtn.addEventListener('click', () => ModalManager.showTaskForm(taskData.id));
+		const addBtn = document.createElement('button');
+		addBtn.className = 'btn';
+		addBtn.title = 'Add Subtask';
+		addBtn.innerHTML = createSVG('add-subtask', 20, 20, 'add-subtask-svg');
+		addBtn.addEventListener('click', () => ModalManager.showTaskForm(null, taskData.id));
 		actionsFooter.appendChild(addBtn);
 
 		// "Delete" button
 		const delBtn = document.createElement('button');
 		delBtn.className = 'btn';
-		delBtn.textContent = 'Delete';
+		delBtn.title = 'Delete Task';
+		delBtn.innerHTML = createSVG('delete', 20, 20, 'delete-svg');
 		delBtn.addEventListener('click', () => TaskManager.deleteTask(taskData.id));
 		actionsFooter.appendChild(delBtn);
 
+		// Edit button
+		const editBtn = document.createElement('button');
+		editBtn.className = 'btn edit-button';
+		editBtn.title = 'Edit Task';
+		editBtn.innerHTML = createSVG('edit', 18, 18, 'feather feather-edit');
+		editBtn.addEventListener('click', () => ModalManager.showTaskForm(taskData.id));
+		actionsFooter.appendChild(editBtn);
+
 		taskItem.appendChild(actionsFooter);
+
+		// Event listener for the new toggle
+		detailsToggleBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const isCollapsing = detailsCollapsible.classList.contains('expanded');
+			const detailsText = detailsToggleBtn.querySelector('span');
+
+			if (isCollapsing) {
+				detailsCollapsible.style.maxHeight = detailsCollapsible.scrollHeight + 'px';
+				detailsCollapsible.offsetHeight;
+
+				detailsCollapsible.classList.remove('expanded');
+				detailsToggleBtn.classList.remove('expanded');
+				if (detailsText) detailsText.textContent = 'Details';
+				detailsCollapsible.style.maxHeight = '0px';
+			} else {
+				detailsCollapsible.classList.add('expanded');
+				detailsToggleBtn.classList.add('expanded');
+				if (detailsText) detailsText.textContent = 'Hide';
+				detailsCollapsible.style.maxHeight = detailsCollapsible.scrollHeight + 'px';
+			}
+			setTimeout(() => this.UIManager.updateParentContainers(detailsCollapsible), 0);
+		});
 
 		return taskItem;
 	},
@@ -266,8 +303,8 @@ export const TaskRenderer = {
 			// If indicator doesn't exist, create it
 			if (!recurringIndicator) {
 				recurringIndicator = document.createElement('span');
-				recurringIndicator.className = 'recurring-indicator';
-				recurringIndicator.innerHTML = RECURRING_ICON_SVG;
+				recurringIndicator.className = 'recurring-indicator recurring-svg';
+				recurringIndicator.innerHTML = createSVG('recurring', 18, 18, 'recurring-svg');
 				recurringIndicator.addEventListener('click', (e) => ModalManager.showRecurringEditForm(taskId, e));
 
 				const summaryMeta = taskElement.querySelector('.task-summary-meta');
@@ -284,6 +321,16 @@ export const TaskRenderer = {
 			// Remove if no longer recurring
 			recurringIndicator.remove();
 		}
+
+		// Update category
+		const categoryElement = taskElement.querySelector('.meta-row .meta-value');
+		if (categoryElement) {
+			const category = DataManager.state.categories.find(c => c.id === updatedTask.categoryId)?.name || 'None';
+			categoryElement.textContent = category;
+		}
+
+		// Update priority
+		this.updatePriorityDisplay(taskId, updatedTask.priority);
 	},
 
 	editTaskTitle: function (event, taskId) {
