@@ -5,6 +5,8 @@ import { ModalManager } from './ModalManager.js'; // Import the new ModalManager
 import { TaskRenderer } from './TaskRenderer.js'; // Import the new TaskRenderer
 import APIManager from './APIManager.js';
 
+let closeUniversalPriorityDropdownHandler = null;
+
 export const UIManager = {
 	elements: {},
 
@@ -26,6 +28,9 @@ export const UIManager = {
 			throw new Error(`Missing required elements: ${missingElements.join(', ')}`);
 		}
 
+		this.elements.universalPriorityDropdown = this.createUniversalPriorityDropdown();
+		document.body.appendChild(this.elements.universalPriorityDropdown);
+
 		this.setupEventListeners();
 		TaskRenderer.setUIManager(this); // Set the reference to UIManager
 		ModalManager.init(); // Initialize ModalManager
@@ -36,12 +41,10 @@ export const UIManager = {
 	},
 
 	setupRecurringControls: function (handlers) {
-		// Delegate to ModalManager
 		ModalManager.setupRecurringControls(handlers);
 	},
 
 	setupRecurringEditControls: function (handlers) {
-		// Delegate to ModalManager
 		ModalManager.setupRecurringEditControls(handlers);
 	},
 
@@ -102,55 +105,6 @@ export const UIManager = {
 		ModalManager.showCategoryForm();
 	},
 
-	async renderCategoryList() {
-        const list = document.getElementById('categoryModalList');
-        const categories = DataManager.state.categories.filter(c => c.id !== null); // exclude "All"
-
-        list.innerHTML = categories.map(cat => `
-            <li class="form-group" data-id="${cat.id}">
-                <input type="text" class="inline-input" value="${cat.name}" />
-                <button class="btn saveCategoryBtn">💾</button>
-                <button class="btn deleteCategoryBtn">🗑️</button>
-            </li>
-        `).join('');
-
-        list.querySelectorAll('.saveCategoryBtn').forEach(btn =>
-            btn.addEventListener('click', async e => {
-                const li = e.target.closest('li');
-                const id = parseInt(li.dataset.id);
-                const name = li.querySelector('input').value.trim();
-                if (!name) return;
-
-                try {
-                    const updated = await APIManager.updateCategory(id, { name });
-                    const category = DataManager.state.categories.find(c => c.id === id);
-                    if (category) category.name = updated.name; // Update DataManager state
-					UIManager.refreshCategoryDropdown(); // Refresh main dropdown
-					UIManager.renderCategories(DataManager.state.categories);
-                } catch (err) {
-                    console.error('Failed to update category', err);
-                }
-            })
-        );
-
-        list.querySelectorAll('.deleteCategoryBtn').forEach(btn =>
-            btn.addEventListener('click', async e => {
-                const li = e.target.closest('li');
-                const id = parseInt(li.dataset.id);
-
-                try {
-                    await APIManager.deleteCategory(id);
-                    DataManager.state.categories = DataManager.state.categories.filter(c => c.id !== id); // Update DataManager state
-                    UIManager.refreshCategoryDropdown(); // Refresh main dropdown
-					this.renderCategoryList(); // re-render
-					UIManager.renderCategories(DataManager.state.categories);
-                } catch (err) {
-                    console.error('Failed to delete category', err);
-                }
-            })
-        );
-	},
-
 	refreshCategoryDropdown() {
 		const select = document.getElementById('taskCategory'); // This is the select in the task form modal
 		if (!select) return;
@@ -159,13 +113,12 @@ export const UIManager = {
 			`<option value="${c.id ?? ''}">${c.name}</option>`
 		).join('');
 	},
-	// This function is called by ModalManager.hideCategoryForm
+
 	hideCategoryForm: function () {
 		document.getElementById('categoryModal').style.display = 'none';
 	},
 
 	createTaskElement: function (task) {
-		// Delegate to TaskRenderer
 		return TaskRenderer.createTaskElement(task);
 	},
 
@@ -196,6 +149,7 @@ export const UIManager = {
 			setTimeout(() => this.updateParentContainers(subtasksContainer), 0);
 		}
 	},
+
 	deleteTaskElement: function (taskId) {
 		const taskElement = document.querySelector(`.task-container[data-task-id="${taskId}"]`);
 		if (!taskElement) return;
@@ -347,6 +301,7 @@ export const UIManager = {
 			parent = parent.parentElement;
 		}
 	},
+
 	addTaskToUI: function (task) {
 		const taskElement = document.createElement('div');
 		taskElement.className = `task-container category-${task.category || 'none'}`;
@@ -463,5 +418,70 @@ export const UIManager = {
 			console.error('Error formatting date:', e);
 			return dateString; // Fallback to original string on error
 		}
-	}
+	},
+
+	createUniversalPriorityDropdown: function () {
+		const dropdown = document.createElement('div');
+		dropdown.className = 'priority-dropdown'; // Use existing class for styling
+		dropdown.style.position = 'absolute'; // Must be positioned absolutely
+		dropdown.style.display = 'none'; // Start hidden
+		dropdown.style.zIndex = '1010'; // Ensure it's on top
+
+		['Low', 'Medium', 'High'].forEach(level => {
+			const option = document.createElement('div');
+			option.className = `priority-option priority-${level}`;
+			option.textContent = level;
+			option.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const taskId = dropdown.dataset.taskId;
+				if (taskId) {
+					TaskManager.updatePriority(e, parseInt(taskId, 10), level);
+				}
+				this.hideUniversalPriorityDropdown();
+			});
+			dropdown.appendChild(option);
+		});
+
+		return dropdown;
+	},
+
+	toggleUniversalPriorityDropdown: function (targetElement, taskId) {
+		const dropdown = this.elements.universalPriorityDropdown;
+
+		if (dropdown.style.display === 'block' && dropdown.dataset.taskId === String(taskId)) {
+			this.hideUniversalPriorityDropdown();
+			return;
+		}
+
+		// Store the task ID on the dropdown so its options know which task to update
+		dropdown.dataset.taskId = taskId;
+
+		// Position and show the dropdown
+		const rect = targetElement.getBoundingClientRect();
+		dropdown.style.left = `${rect.left}px`;
+		dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+		dropdown.style.display = 'block';
+
+		// Use setTimeout to avoid the current click event from immediately closing the dropdown
+		setTimeout(() => {
+			closeUniversalPriorityDropdownHandler = (e) => {
+				if (!dropdown.contains(e.target) && e.target !== targetElement) {
+					this.hideUniversalPriorityDropdown();
+				}
+			};
+			document.addEventListener('click', closeUniversalPriorityDropdownHandler);
+		}, 0);
+	},
+
+	hideUniversalPriorityDropdown: function () {
+		const dropdown = this.elements.universalPriorityDropdown;
+		if (dropdown) {
+			dropdown.style.display = 'none';
+			delete dropdown.dataset.taskId;
+		}
+		if (closeUniversalPriorityDropdownHandler) {
+			document.removeEventListener('click', closeUniversalPriorityDropdownHandler);
+			closeUniversalPriorityDropdownHandler = null;
+		}
+	},
 };

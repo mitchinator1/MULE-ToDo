@@ -331,19 +331,46 @@ body {
 	margin-top: -1px; /* Overlap with bottom border of task-item */
 }
 
+.task-actions-footer .details-toggle-btn {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.details-arrow-svg {
+	transition: transform 0.2s ease-in-out;
+	flex-shrink: 0;
+	/* Prevent icon from shrinking */
+}
+
+.details-toggle-btn.expanded .details-arrow-svg {
+	transform: rotate(-90deg);
+}
+
 .task-actions-footer .btn,
 .task-actions-footer .details-toggle-btn {
-	text-align: center;
 	background: none;
 	border: none;
 	cursor: pointer;
 	color: #f5f5f5;
-	padding: 4px;
-	font-weight: 500;
+	padding: 2px;
 	border-radius: 4px;
 	transition: color 0.2s, color 0.2s;
 	font-size: 0.9em;
-	min-width: 80px;
+	min-width: 40px;
+	height: 30px
+}
+
+.task-actions-footer .details-toggle-btn {
+	width: 68px;
+}
+
+.task-actions-footer .seperator {
+	display: inline-flex;
+	align-items: center;
+	height: 30px;
+	color: #666;
+	margin: 0 -2px;
 }
 .task-actions-footer .btn:hover,
 .task-actions-footer .details-toggle-btn:hover {
@@ -630,10 +657,6 @@ body {
 	gap: 8px;
 }
 
-.form-group .weekly-days {
-	margin-top: 8px;
-}
-
 .weekday-options {
 	display: grid;
 	grid-template-columns: repeat(5, 1fr);
@@ -778,6 +801,8 @@ body {
 	padding: 10px;
 	background: var(--color-background-secondary);
 	border-radius: 4px;
+	flex-direction: column;
+	gap: 8px;
 }
 
 .recurring-options .form-row {
@@ -871,14 +896,30 @@ body {
 	color: white;
 }
 
-.btn-delete {
-	background: #a70303;
-	color: white;
+.saveCategoryBtn, .deleteCategoryBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+	background: transparent;
+}
+
+.saveCategoryBtn {
+	color: var(--color-accent-blue)
+}
+
+.deleteCategoryBtn {
+	color: #e71111;
+}
+
+.saveCategoryBtn:hover, .deleteCategoryBtn:hover {
+    opacity: 0.75;
 }
 
 .saveCategoryBtn {
 	margin-right: 6px;
-	font-size: 1em;
 }
 
 .new-category {

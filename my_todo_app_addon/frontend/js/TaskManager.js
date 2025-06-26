@@ -35,7 +35,6 @@ export const TaskManager = {
 			DataManager.state.categories = [{ id: null, name: 'All' }, ...categories];
 			UIManager.refreshCategoryDropdown?.();
 			UIManager.renderCategories(DataManager.state.categories);
-			ModalManager.init();
 			this.setupEventListeners();
 			UIManager.setupRecurringControls();
 			ModalManager.setupRecurringEditControls({
@@ -73,12 +72,6 @@ export const TaskManager = {
 				ModalManager.hideTaskForm();
 			}
 		});
-
-		document.getElementById('dueDate')?.addEventListener('change', (e) => this.updateDueDate(e, 'modal'));
-		document.getElementById('dueDate')?.addEventListener('click', (e) => e.stopPropagation());
-
-		document.querySelectorAll('#taskForm .priority-option').forEach(option =>
-			option.addEventListener('click', (e) => this.updatePriority(e, 'modal', option.textContent.trim())));
 	},
 
 	async loadTasks() {
@@ -181,6 +174,7 @@ export const TaskManager = {
 			status: existingTask.status,
 			parentTaskId: formData.get('parentTaskId') || null,
 		};
+
 		UIManager.showThrobber('Updating task');
 
 		const changedFields = this.getChangedFields(existingTask, taskData);
@@ -189,6 +183,39 @@ export const TaskManager = {
 			UIManager.hideThrobber('Updating task');
 			return { success: true, isEditing: true };
 		}
+
+		// Add recurring data to taskData for update
+		const pattern = document.getElementById('recurringPattern')?.value;
+		if (pattern && pattern !== 'none') {
+			taskData.recurring = this.getRecurringPattern();
+		} else {
+			taskData.recurring = {}; // Explicitly set to empty object if no recurring pattern
+		}
+
+		// Special handling for recurring: if it changed, ensure it's in changedFields
+		// Compare JSON stringified versions for deep equality
+		if (JSON.stringify(existingTask.recurring || {}) !== JSON.stringify(taskData.recurring || {})) {
+			changedFields.recurring = taskData.recurring;
+		}
+
+		try {
+			UIManager.showThrobber('Updating task');
+			const result = await APIManager.updateTask(taskId, changedFields);
+			if (result.message === 'Task updated successfully' && result.task) {
+				DataManager.updateTask(result.task);
+				TaskRenderer.updateTaskElement(taskId, result.task);
+				UIManager.showMessage('Task updated successfully', 'success');
+				return { success: true, isEditing: true };
+			} else {
+				UIManager.showErrorMessage(`Update failed or no task returned: ${result.message || 'Unknown error'}`, `updating task`);
+				return { success: false, isEditing: true };
+			}
+		} catch (err) {
+            console.error('Failed to update task', err);
+            UIManager.showErrorMessage(err, 'updating task');
+        } finally {
+            UIManager.hideThrobber('Updating task');
+        }
 	},
 
 	getChangedFields(existingTask, newTaskData) {
@@ -397,22 +424,14 @@ export const TaskManager = {
 	updateDueDate(event, taskId) {
 		event.stopPropagation();
 		const newDueDate = event.target.value;
-		if (taskId === 'modal') {
-			ModalManager.updateDueDateDisplay(newDueDate);
-		} else {
-			TaskRenderer.updateDueDateDisplay(taskId, newDueDate);
-			this.updateTaskField(taskId, 'dueDate', newDueDate);
-		}
+		TaskRenderer.updateDueDateDisplay(taskId, newDueDate);
+		this.updateTaskField(taskId, 'dueDate', newDueDate);
 	},
 
 	updatePriority(event, taskId, priority) {
 		event.stopPropagation(); // Prevent the event from bubbling up
-		if (taskId === 'modal') {
-			ModalManager.updatePriorityDisplay(priority);
-		} else {
-			TaskRenderer.updatePriorityDisplay(taskId, priority);
-			this.updateTaskField(taskId, 'priority', priority);
-		}
+		TaskRenderer.updatePriorityDisplay(taskId, priority);
+		this.updateTaskField(taskId, 'priority', priority);
 	},
 
 	async handleRecurringEditSubmit(e) {
@@ -447,6 +466,8 @@ export const TaskManager = {
 	},
 
 	getRecurringPattern(prefix = '') {
+		const form = prefix ? document.getElementById('recurringEditForm') : document.getElementById('taskFormElement');
+
 		const patternId = prefix ? `${prefix}RecurringPattern` : 'recurringPattern';
 		const customIntervalId = prefix ? `${prefix}CustomInterval` : 'customInterval';
 		const customUnitId = prefix ? `${prefix}CustomUnit` : 'customUnit';
@@ -455,7 +476,7 @@ export const TaskManager = {
 		const endDateId = prefix ? `${prefix}EndDate` : 'endDate';
 		const byMonthDayId = prefix ? `${prefix}ByMonthDay` : 'editByMonthDay';
 
-		const frequency = document.getElementById(patternId)?.value || 'none';
+		const frequency = form.querySelector(`#${patternId}`)?.value || 'none';
 
 		if (frequency === 'none') return {};
 
@@ -466,21 +487,21 @@ export const TaskManager = {
 			by_month_day: null,
 			end: {
 				date: null,
-				type: document.querySelector(`input[name="${recurringEndName}"]:checked`)?.value || 'never',
-				after_occurrences: parseInt(document.getElementById(occurenceCountId)?.value) || null
+				type: form.querySelector(`input[name="${recurringEndName}"]:checked`)?.value || 'never',
+				after_occurrences: parseInt(form.querySelector(`#${occurenceCountId}`)?.value) || null
 			}
 		};
 
 		// Handle custom frequency interval
 		if (frequency === 'custom') {
-			const val = parseInt(document.getElementById(customIntervalId)?.value || '1');
-			const unit = document.getElementById(customUnitId)?.value || 'days';
+			const val = parseInt(form.querySelector(`#${customIntervalId}`)?.value || '1');
+			const unit = form.querySelector(`#${customUnitId}`)?.value || 'days';
 			recurringData.interval = { value: val, unit };
 		}
 
 		// Handle weekly/weekday frequency (checkboxes)
 		if (frequency === 'weekly' || frequency === 'weekday') {
-			const checked = Array.from(document.querySelectorAll('.weekday-checkbox'))
+			const checked = Array.from(form.querySelectorAll('.weekday-checkbox'))
 				.filter(cb => cb.checked)
 				.map(cb => cb.value);
 			if (checked.length) {
@@ -490,22 +511,22 @@ export const TaskManager = {
 
 		// Handle monthly frequency (by_month_day)
 		if (frequency === 'monthly') {
-			const byMonthDay = document.getElementById(byMonthDayId)?.value;
+			const byMonthDay = form.querySelector(`#${byMonthDayId}`)?.value;
 			if (byMonthDay) {
 				recurringData.by_month_day = byMonthDay;
 			}
 		}
 
 		// Handle end type
-		if (recurringData.end_type === 'after') {
-			const occurenceCount = document.getElementById(occurenceCountId);
+		if (recurringData.end.type === 'after') {
+			const occurenceCount = form.querySelector(`#${occurenceCountId}`);
 			recurringData.end.after_occurrences = occurenceCount ? parseInt(occurenceCount.value) : 1;
 		} else if (recurringData.end.type === 'on') {
-			const endDate = document.getElementById(endDateId);
+			const endDate = form.querySelector(`#${endDateId}`);
 			recurringData.end.date = endDate ? endDate.value : null;
 		}
 
-		const dueDateInput = document.getElementById(prefix ? `${prefix}DueDate` : 'dueDate');
+		const dueDateInput = form.querySelector(prefix ? `#${prefix}DueDate` : '#dueDate');
 		recurringData.start_date = dueDateInput?.value || new Date().toISOString().split('T')[0];
 
 		return recurringData;
