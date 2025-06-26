@@ -57,7 +57,16 @@ export const TaskManager = {
 	},
 
 	setupEventListeners() {
-		UIManager.elements.formElement.addEventListener('submit', this.handleFormSubmit.bind(this));
+		UIManager.elements.formElement.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			const result = await this.handleFormSubmit(event);
+			if (result && result.success) {
+				// Only reset the form if the submission was successful and it was an add operation
+				if (!result.isEditing) {
+					event.target.reset();
+				}
+			}
+		});
 		UIManager.elements.addTaskButton.addEventListener('click', () => ModalManager.showTaskForm());
 		document.addEventListener('click', (event) => {
 			if (event.target === UIManager.elements.taskForm) {
@@ -97,6 +106,28 @@ export const TaskManager = {
 	async handleFormSubmit(event) {
 		event.preventDefault();
 		const formData = new FormData(event.target);
+		const taskId = formData.get('taskId');
+		const isEditing = !!taskId; // true if taskId exists, false otherwise
+
+		let result = { success: false };
+
+		try {
+			if (isEditing) {
+				result = await this.updateTask(taskId, formData);
+			} else {
+				result = await this.addTask(formData);
+			}
+		} catch (error) {
+			console.error('Error in handleFormSubmit:', error);
+			UIManager.showErrorMessage(error, isEditing ? 'updating task' : 'adding task');
+		} finally {
+			ModalManager.hideTaskForm();
+		}
+
+		return result;
+	},
+
+	async addTask(formData) {
 
 		// Get the task name and validate it
 		const taskName = formData.get('taskName');
@@ -117,73 +148,46 @@ export const TaskManager = {
 			parentTaskId: formData.get('parentTaskId') || null,
 		};
 
-		// Only add recurring data if a pattern is selected
-		const pattern = document.getElementById('recurringPattern')?.value;
-		if (pattern && pattern !== 'none') {
-			taskData.recurring = this.getRecurringPattern();
+        // Only add recurring data if a pattern is selected
+        const pattern = document.getElementById('recurringPattern')?.value;
+        if (pattern && pattern !== 'none') {
+            taskData.recurring = this.getRecurringPattern();
+        }
+
+		UIManager.showThrobber('Adding task');
+
+		let result = await APIManager.addTask(taskData);
+
+		if (result.id) { // Check for the ID to confirm success for add
+			DataManager.addTask(result);
+			UIManager.addTaskToUI(result);
+			UIManager.showMessage('Task added successfully', 'success');
+		} else {
+			UIManager.showErrorMessage(`Add failed or no task ID returned`, `adding task`);
 		}
 
-		const taskId = formData.get('taskId');
-		const isEditing = !!taskId; // true if taskId exists, false otherwise
+		UIManager.hideThrobber('Adding task');
+		return { success: !!result.id, isEditing: false };
+	},
 
-		try {
-			UIManager.showThrobber(isEditing ? 'Updating task' : 'Adding task');
-			let result;
+	async updateTask(taskId, formData) {
+		const existingTask = DataManager.getTaskById(taskId);
+		const taskData = {
+			title: formData.get('taskName').trim(),
+			description: formData.get('description') || '',
+			dueDate: formData.get('dueDate') || '',
+			priority: formData.get('priority') || 'Low',
+			categoryId: formData.get('taskCategory') || null,
+			status: existingTask.status,
+			parentTaskId: formData.get('parentTaskId') || null,
+		};
+		UIManager.showThrobber('Updating task');
 
-			if (isEditing) {
-				const existingTask = DataManager.getTaskById(taskId);
-
-				const changedFields = {};
-
-				if (existingTask.title !== taskData.title) changedFields.title = taskData.title;
-				if (existingTask.description !== taskData.description) changedFields.description = taskData.description;
-				if (existingTask.dueDate !== taskData.dueDate) changedFields.dueDate = taskData.dueDate;
-				if (existingTask.priority !== taskData.priority) changedFields.priority = taskData.priority;
-				if (existingTask.status !== taskData.status) changedFields.status = taskData.status;
-				if (existingTask.parentTaskId !== taskData.parentTaskId) changedFields.parentTaskId = taskData.parentTaskId;
-				if (existingTask.categoryId !== taskData.categoryId) changedFields.categoryId = taskData.categoryId;
-
-				if (JSON.stringify(existingTask.recurring) !== JSON.stringify(taskData.recurring)) {
-					changedFields.recurring = taskData.recurring;
-				}
-
-				if (Object.keys(changedFields).length === 0) {
-					UIManager.showMessage('No changes detected', 'info');
-					UIManager.hideTaskForm();
-					return;
-				}
-
-				result = await APIManager.updateTask(taskId, changedFields);
-
-				if (result.message === 'Task updated successfully' && result.task) {
-					DataManager.updateTask(result.task);
-					TaskRenderer.updateTaskElement(taskId, result.task);
-					UIManager.showMessage('Task updated successfully', 'success');
-				} else {
-					 // Handle cases where update might succeed but task object is not returned or message is different
-					 UIManager.showErrorMessage(`Update failed or no task returned: ${result.message || 'Unknown error'}`, `updating task`);
-				}
-			} else { // Adding a new task
-
-				result = await APIManager.addTask(taskData);
-
-				if (result.id) { // Check for the ID to confirm success for add
-					DataManager.addTask(result);
-					UIManager.addTaskToUI(result);
-					UIManager.showMessage('Task added successfully', 'success');
-				} else {
-					UIManager.showErrorMessage(`Add failed or no task ID returned`, `adding task`);
-				}
-			}
-		} catch (error) {
-			console.error('Error in handleFormSubmit:', error);
-			UIManager.showErrorMessage(error, isEditing ? 'updating task' : 'adding task');
-		} finally {
-			ModalManager.hideTaskForm();
-			UIManager.hideThrobber(isEditing ? 'Updating task' : 'Adding task');
-			if (!isEditing) { // Only reset if it was an add operation
-				event.target.reset();
-			}
+		const changedFields = this.getChangedFields(existingTask, taskData);
+		if (Object.keys(changedFields).length === 0) {
+			UIManager.showMessage('No changes detected', 'info');
+			UIManager.hideThrobber('Updating task');
+			return { success: true, isEditing: true };
 		}
 	},
 

@@ -76,6 +76,16 @@ export const ModalManager = {
         this.elements.taskFormModal.style.display = 'block';
         if (this.elements.taskNameInput) this.elements.taskNameInput.focus();
     },
+    prepopulateTaskForm: function (task) {
+		this.elements.taskNameInput.value = task.title;
+		this.elements.taskFormModal.querySelector('#description').value = task.description;
+		this.elements.taskFormModal.querySelector('#dueDate').value = task.dueDate;
+		this.elements.modalDueDateDisplay.textContent = UIManager.formatDateForDisplay(task.dueDate);
+		const priority = task.priority || 'Medium';
+		this.updatePriorityDisplay(priority);
+		this.elements.taskCategorySelect.value = task.categoryId || '';
+		// Recurring pattern?
+	},
 
     hideTaskForm: function () {
         // Hide the modal and reset the form

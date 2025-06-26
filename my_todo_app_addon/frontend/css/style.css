@@ -889,7 +889,7 @@ body {
 /* Inline text editing */
 .title-edit {
 	font-weight: 600;
-	font-size: 1.1em;
+	font-size: 0.9rem;
 	line-height: 1;
 	width: 100%;
 	border-top-width: 0;

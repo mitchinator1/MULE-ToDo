@@ -186,22 +186,17 @@ export const TaskRenderer = {
 
 		// --- 3. Task Actions Footer ---
 		const actionsFooter = document.createElement('div');
-		actionsFooter.className = 'task-actions-footer';
+		actionsFooter.className = 'task-actions-footer flex-right';
 
-		// Details Toggle Button
-		const detailsToggleBtn = document.createElement('button');
-		detailsToggleBtn.className = 'details-toggle-btn';
-		detailsToggleBtn.textContent = 'Details';
-		actionsFooter.appendChild(detailsToggleBtn);
-
-		const seperator = document.createElement('span');
-		seperator.className = 'seperator';
-		seperator.textContent = '|';
-		actionsFooter.appendChild(seperator);
+		// Edit button
+		const editBtn = document.createElement('button');
+		editBtn.className = 'btn edit-button';
+		editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Edit`;
+		editBtn.addEventListener('click', () => ModalManager.showTaskForm(taskData.id));
+		actionsFooter.appendChild(editBtn);
 
 		// "Add Subtask" button
-		const addBtn = document.createElement('button');
-		addBtn.className = 'btn';
+		const addBtn = document.createElement('button'); addBtn.className = 'btn';
 		addBtn.textContent = 'Add Subtask'; // Text for the button
 		addBtn.addEventListener('click', () => ModalManager.showTaskForm(taskData.id));
 		actionsFooter.appendChild(addBtn);
@@ -212,27 +207,8 @@ export const TaskRenderer = {
 		delBtn.textContent = 'Delete';
 		delBtn.addEventListener('click', () => TaskManager.deleteTask(taskData.id));
 		actionsFooter.appendChild(delBtn);
+
 		taskItem.appendChild(actionsFooter);
-
-		// Event listener for the new toggle
-		detailsToggleBtn.addEventListener('click', (e) => {
-			e.stopPropagation();
-			const isCollapsing = detailsCollapsible.classList.contains('expanded');
-
-			if (isCollapsing) {
-				detailsCollapsible.style.maxHeight = detailsCollapsible.scrollHeight + 'px';
-				detailsCollapsible.offsetHeight;
-
-				detailsCollapsible.classList.remove('expanded');
-				detailsToggleBtn.textContent = 'Details';
-				detailsCollapsible.style.maxHeight = '0px';
-			} else {
-				detailsCollapsible.classList.add('expanded');
-				detailsToggleBtn.textContent = 'Hide';
-				detailsCollapsible.style.maxHeight = detailsCollapsible.scrollHeight + 'px';
-			}
-			setTimeout(() => this.UIManager.updateParentContainers(detailsCollapsible), 0);
-		});
 
 		return taskItem;
 	},
