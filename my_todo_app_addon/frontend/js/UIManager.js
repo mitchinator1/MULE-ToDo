@@ -448,6 +448,12 @@ export const UIManager = {
 	toggleUniversalPriorityDropdown: function (targetElement, taskId) {
 		const dropdown = this.elements.universalPriorityDropdown;
 
+		// If a listener from a previous dropdown is active, remove it first to prevent conflicts.
+		if (closeUniversalPriorityDropdownHandler) {
+			document.removeEventListener('click', closeUniversalPriorityDropdownHandler);
+			closeUniversalPriorityDropdownHandler = null;
+		}
+
 		if (dropdown.style.display === 'block' && dropdown.dataset.taskId === String(taskId)) {
 			this.hideUniversalPriorityDropdown();
 			return;
@@ -458,8 +464,19 @@ export const UIManager = {
 
 		// Position and show the dropdown
 		const rect = targetElement.getBoundingClientRect();
-		dropdown.style.left = `${rect.left}px`;
+		const dropdownWidth = rect.width;
+		let dropdownLeft = rect.left;
+		const viewportWidth = window.innerWidth;
+		const margin = 8; // A small margin from the viewport edge
+
+		// If the dropdown would overflow the right edge of the viewport, adjust its position.
+		if (dropdownLeft + dropdownWidth > viewportWidth) {
+			dropdownLeft = viewportWidth - dropdownWidth - margin;
+		}
+
+		dropdown.style.left = `${dropdownLeft}px`;
 		dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+		dropdown.style.width = `${dropdownWidth}px`; // Set width to match the target
 		dropdown.style.display = 'block';
 
 		// Use setTimeout to avoid the current click event from immediately closing the dropdown

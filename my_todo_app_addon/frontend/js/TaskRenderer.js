@@ -121,14 +121,11 @@ export const TaskRenderer = {
 		summaryMeta.appendChild(dueContainer);
 
 		// Priority
-		const priorityContainer = document.createElement('div');
-		priorityContainer.className = 'priority-container';
 		const priorityDisplay = document.createElement('div');
 		priorityDisplay.className = `priority priority-${taskData.priority}`; // e.g., priority-High
 		priorityDisplay.textContent = taskData.priority;
 		priorityDisplay.addEventListener('click', (e) => this.UIManager.toggleUniversalPriorityDropdown(e.currentTarget, taskData.id));
-		priorityContainer.appendChild(priorityDisplay);
-		summaryMeta.appendChild(priorityContainer);
+		summaryMeta.appendChild(priorityDisplay);
 		summary.appendChild(summaryMeta);
 		taskItem.appendChild(summary);
 
@@ -415,18 +412,11 @@ export const TaskRenderer = {
 	},
 
 	updatePriorityDisplay: function (taskId, priority) {
-		const container = document.querySelector(`.task-container[data-task-id="${taskId}"] .priority-container`);
-		if (!container) return;
-
-		const priorityElement = container.querySelector('.priority');
-		const dropdown = container.querySelector('.priority-dropdown');
+		const priorityElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .priority`);
 
 		if (priorityElement) {
 			priorityElement.textContent = priority;
 			priorityElement.className = `priority priority-${priority}`;
-		}
-		if (dropdown) {
-			dropdown.style.display = 'none';
 		}
 	},
 };

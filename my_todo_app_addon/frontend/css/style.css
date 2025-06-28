@@ -683,6 +683,7 @@ body {
     display: flex;
     justify-content: space-between;
     padding: 6px 0;
+	gap: 6px;
 }
 
 .category-list input {
@@ -746,9 +747,9 @@ body {
 	color: #d63031;
 }
 
-.priority-dropdown {
+.modal-content .priority-dropdown {
 	position: absolute;
-	top: 100%;
+	top: revert;
 	left: 0;
 	background: white;
 	border-radius: 8px;
@@ -916,10 +917,6 @@ body {
 
 .saveCategoryBtn:hover, .deleteCategoryBtn:hover {
     opacity: 0.75;
-}
-
-.saveCategoryBtn {
-	margin-right: 6px;
 }
 
 .new-category {
