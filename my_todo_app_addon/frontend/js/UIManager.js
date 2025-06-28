@@ -28,6 +28,8 @@ export const UIManager = {
 			throw new Error(`Missing required elements: ${missingElements.join(', ')}`);
 		}
 
+		this.elements.universalDueDateDropdown = this.createUniversalDueDateDropdown();
+		document.body.appendChild(this.elements.universalDueDateDropdown);
 		this.elements.universalPriorityDropdown = this.createUniversalPriorityDropdown();
 		document.body.appendChild(this.elements.universalPriorityDropdown);
 
@@ -417,6 +419,83 @@ export const UIManager = {
 		} catch (e) {
 			console.error('Error formatting date:', e);
 			return dateString; // Fallback to original string on error
+		}
+	},
+
+	createUniversalDueDateDropdown: function () {
+		const dropdown = document.createElement('div');
+		dropdown.className = 'due-date-dropdown'; // Use existing class for styling
+		dropdown.style.position = 'absolute'; // Must be positioned absolutely
+		dropdown.style.display = 'none'; // Start hidden
+		dropdown.style.zIndex = '1010'; // Ensure it's on top
+
+		const options = ['Today', 'Tomorrow', 'Next Week', 'Next Month', 'No Due Date'];
+		options.forEach(option => {
+			const optionElement = document.createElement('div');
+			optionElement.className = `due-date-option due-date-${option.toLowerCase().replace(/ /g, '-')}`;
+			optionElement.textContent = option;
+			optionElement.addEventListener('click', (e) => {
+				e.stopPropagation();
+				const taskId = dropdown.dataset.taskId;
+				if (taskId) {
+					TaskManager.updateDueDateDisplay(e, parseInt(taskId, 10), option);
+					TaskManager.updateTaskField(taskId, 'dueDate', newDueDate);
+				}
+				this.hideUniversalDueDateDropdown();
+			});
+			dropdown.appendChild(optionElement);
+		});
+
+		return dropdown;
+	},
+
+	toggleUniversalDueDateDropdown: function (targetElement, taskId) {
+		const dropdown = this.elements.universalDueDateDropdown;
+		// If a listener from a previous dropdown is active, remove it first to prevent conflicts.
+		if (closeUniversalDueDateDropdownHandler) {
+			document.removeEventListener('click', closeUniversalDueDateDropdownHandler);
+			closeUniversalDueDateDropdownHandler = null;
+		}
+		if (dropdown.style.display === 'block' && dropdown.dataset.taskId === String(taskId)) {
+			this.hideUniversalDueDateDropdown();
+			return;
+		}
+		// Store the task ID on the dropdown so its options know which task to update
+		dropdown.dataset.taskId = taskId;
+		// Position and show the dropdown
+		const rect = targetElement.getBoundingClientRect();
+		const dropdownWidth = rect.width;
+		let dropdownLeft = rect.left;
+		const viewportWidth = window.innerWidth;
+		const margin = 8; // A small margin from the viewport edge
+		// If the dropdown would overflow the right edge of the viewport, adjust its position.
+		if (dropdownLeft + dropdownWidth > viewportWidth) {
+			dropdownLeft = viewportWidth - dropdownWidth - margin;
+		}
+		dropdown.style.left = `${dropdownLeft}px`;
+		dropdown.style.top = `${rect.bottom + window.scrollY}px`;
+		dropdown.style.width = `${dropdownWidth}px`; // Set width to match the target
+		dropdown.style.display = 'block';
+		// Use setTimeout to avoid the current click event from immediately closing the dropdown
+		setTimeout(() => {
+			closeUniversalDueDateDropdownHandler = (e) => {
+				if (!dropdown.contains(e.target) && e.target !== targetElement) {
+					this.hideUniversalDueDateDropdown();
+				}
+			};
+			document.addEventListener('click', closeUniversalDueDateDropdownHandler);
+		}, 0);
+	},
+
+	hideUniversalDueDateDropdown: function () {
+		const dropdown = this.elements.universalDueDateDropdown;
+		if (dropdown) {
+			dropdown.style.display = 'none';
+			delete dropdown.dataset.taskId;
+		}
+		if (closeUniversalDueDateDropdownHandler) {
+			document.removeEventListener('click', closeUniversalDueDateDropdownHandler);
+			closeUniversalDueDateDropdownHandler = null;
 		}
 	},
 

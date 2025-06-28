@@ -83,42 +83,49 @@ export const TaskRenderer = {
 		}
 
 		// Due Date
-		const dueContainer = document.createElement('span');
-		dueContainer.className = 'meta-item due-date-container';
-		const dueValue = document.createElement('span');
-		dueValue.className = 'meta-value due-date';
-		dueValue.dataset.rawDate = taskData.dueDate || ''; // Store raw date for date input
-		dueValue.textContent = this.UIManager.formatDateForDisplay(taskData.dueDate); // Display formatted date
-		dueValue.addEventListener('click', (e) => this.toggleDueDateDropdown(e, taskData.id));
-		dueContainer.appendChild(dueValue);
-		const dueDropdown = document.createElement('div');
-		dueDropdown.className = 'date-picker-dropdown';
-		dueDropdown.style.display = 'none';
-		const datePickerHeader = document.createElement('div');
-		datePickerHeader.className = 'date-picker-header';
-		const clear = document.createElement('span');
-		clear.className = 'clear-date';
-		clear.textContent = 'Clear';
-		clear.addEventListener('click', (e) => this.clearDueDate(e, taskData.id));
-		datePickerHeader.appendChild(clear);
-		const quickDates = document.createElement('span');
-		quickDates.className = 'quick-dates';
-		['today', 'tomorrow', 'nextWeek'].forEach(option => {
-			const span = document.createElement('span');
-			span.textContent = option.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, s => s.toUpperCase());
-			span.addEventListener('click', (e) => this.setQuickDate(e, taskData.id, option));
-			quickDates.appendChild(span);
-		});
-		datePickerHeader.appendChild(quickDates);
-		dueDropdown.appendChild(datePickerHeader);
-		const dateInput = document.createElement('input');
-		dateInput.type = 'date';
-		dateInput.className = 'date-input';
-		dateInput.value = taskData.dueDate ? taskData.dueDate.split('T')[0] : ''; // Date input always needs YYYY-MM-DD
-		dateInput.addEventListener('change', (e) => TaskManager.updateDueDate(e, taskData.id));
-		dueDropdown.appendChild(dateInput);
-		dueContainer.appendChild(dueDropdown);
-		summaryMeta.appendChild(dueContainer);
+		// const dueContainer = document.createElement('span');
+		// dueContainer.className = 'meta-item due-date-container';
+		// const dueValue = document.createElement('span');
+		// dueValue.className = 'meta-value due-date';
+		// dueValue.dataset.rawDate = taskData.dueDate || ''; // Store raw date for date input
+		// dueValue.textContent = this.UIManager.formatDateForDisplay(taskData.dueDate); // Display formatted date
+		// dueValue.addEventListener('click', (e) => this.toggleDueDateDropdown(e, taskData.id));
+		// dueContainer.appendChild(dueValue);
+		// const dueDropdown = document.createElement('div');
+		// dueDropdown.className = 'date-picker-dropdown';
+		// dueDropdown.style.display = 'none';
+		// const datePickerHeader = document.createElement('div');
+		// datePickerHeader.className = 'date-picker-header';
+		// const clear = document.createElement('span');
+		// clear.className = 'clear-date';
+		// clear.textContent = 'Clear';
+		// clear.addEventListener('click', (e) => this.clearDueDate(e, taskData.id));
+		// datePickerHeader.appendChild(clear);
+		// const quickDates = document.createElement('span');
+		// quickDates.className = 'quick-dates';
+		// ['today', 'tomorrow', 'nextWeek'].forEach(option => {
+		// 	const span = document.createElement('span');
+		// 	span.textContent = option.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, s => s.toUpperCase());
+		// 	span.addEventListener('click', (e) => this.setQuickDate(e, taskData.id, option));
+		// 	quickDates.appendChild(span);
+		// });
+		// datePickerHeader.appendChild(quickDates);
+		// dueDropdown.appendChild(datePickerHeader);
+		// const dateInput = document.createElement('input');
+		// dateInput.type = 'date';
+		// dateInput.className = 'date-input';
+		// dateInput.value = taskData.dueDate ? taskData.dueDate.split('T')[0] : ''; // Date input always needs YYYY-MM-DD
+		// dateInput.addEventListener('change', (e) => TaskManager.updateDueDate(e, taskData.id));
+		// dueDropdown.appendChild(dateInput);
+		// dueContainer.appendChild(dueDropdown);
+		// summaryMeta.appendChild(dueContainer);
+
+		// Due Date
+		const dueDateDisplay = document.createElement('div');
+		dueDateDisplay.className = 'due-date-display';
+		dueDateDisplay.textContent = taskData.dueDate ? this.UIManager.formatDateForDisplay(taskData.dueDate) : 'No Due Date';
+		dueDateDisplay.addEventListener('click', (e) => this.UIManager.toggleUniversalDueDateDropdown(e.currentTarget, taskData.id));
+		summaryMeta.appendChild(dueDateDisplay);
 
 		// Priority
 		const priorityDisplay = document.createElement('div');
@@ -126,6 +133,7 @@ export const TaskRenderer = {
 		priorityDisplay.textContent = taskData.priority;
 		priorityDisplay.addEventListener('click', (e) => this.UIManager.toggleUniversalPriorityDropdown(e.currentTarget, taskData.id));
 		summaryMeta.appendChild(priorityDisplay);
+
 		summary.appendChild(summaryMeta);
 		taskItem.appendChild(summary);
 
