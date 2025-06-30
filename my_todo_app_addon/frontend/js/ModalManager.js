@@ -417,9 +417,8 @@ export const ModalManager = {
         }
     },
 
-    // --- Date Picker (within modal or task item) ---
+    // --- Date Picker (within modal) ---
     toggleDueDateDropdown: function (event) {
-        event.stopPropagation();
         const container = event.currentTarget.closest('.due-date-container');
         const dropdown = this.elements.modalDatePickerDropdown;
 
@@ -475,24 +474,22 @@ export const ModalManager = {
 		dropdown.style.display = 'none';
     },
 
-    // --- Priority Picker (within modal or task item) ---
+    // --- Priority Picker (within modal) ---
     togglePriorityDropdown: function (event) {
-        event.stopPropagation();
-        const container = event.currentTarget.closest('.priority-container');
+        const container = event.currentTarget.closest('.priority');
         const dropdown = this.elements.modalPriorityDropdown;
 
-        // Close any other open priority dropdowns
-        document.querySelectorAll('.priority-dropdown').forEach(d => {
-            if (d !== dropdown) d.style.display = 'none';
-        });
         // Toggle display of the current dropdown
         dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        container.classList.toggle('show');
 
         // Add a click listener to close the dropdown when clicking outside
         if (dropdown.style.display === 'block') {
+
             const closeDropdown = (e) => {
                 if (!container.contains(e.target)) {
                     dropdown.style.display = 'none';
+                    container.classList.remove('show');
                     document.removeEventListener('click', closeDropdown);
                 }
             };
@@ -503,11 +500,10 @@ export const ModalManager = {
     },
 
     updatePriorityDisplay: function (priority) {
-		const container = this.elements.taskFormModal.querySelector('.priority-container');
-		if (!container) return; // Ensure we are in the modal context
+		const priorityElement = this.elements.taskFormModal.querySelector('.priority');
+		if (!priorityElement) return; // Ensure we are in the modal context
 
-		const priorityElement = container.querySelector('.priority'); // Get the display element within the modal
-		const dropdown = container.querySelector('.priority-dropdown'); // Get the dropdown within the modal
+		const dropdown = this.elements.taskFormModal.querySelector('.priority-dropdown'); // Get the dropdown within the modal
 		const displayElement = this.elements.modalPriorityDisplay;
 		const priorityHidden = this.elements.priorityHidden;
 
@@ -518,7 +514,8 @@ export const ModalManager = {
 			priorityElement.className = `priority priority-${priority}`;
 		}
 		if (dropdown) {
-			dropdown.style.display = 'none';
+            dropdown.style.display = 'none';
+            // priorityElement.classList.remove('show');
 		}
 	},
 

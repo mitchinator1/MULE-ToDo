@@ -513,10 +513,14 @@ body {
 	padding: 8px 10px 8px 20px;
 	font-weight: 500;
 	color: var(--text-color-secondary);
+	width: 80px;
+	transition: color 0.2s ease;
 }
+
 .task-expand-indicator:hover {
-	background-color: var(--hover-color);
+	color: #bbbbbb;
 }
+
 .task-expand-indicator.hidden {
 	display: none !important;
 }
@@ -748,11 +752,12 @@ body {
 .priority-container {
 	position: relative;
 	display: inline-block;
+	user-select: none;
 }
 
 .priority {
 	padding: 2px 8px;
-	border-radius: 12px;
+	border-radius: 8px;
 	font-size: 0.8em;
 	white-space: nowrap;
 	min-width: 40px;
@@ -762,6 +767,10 @@ body {
 
 .priority.show {
 	border-radius: 8px 8px 0 0;
+}
+
+.priority-container .priority.show {
+	border-radius: 4px 4px 0 0;
 }
 
 .priority-Low {
@@ -791,8 +800,9 @@ body {
 	min-width: 100%;
 }
 
-.priority-dropdown.show {
-	display: block;
+.priority-dropdown {
+	position: absolute;
+	z-index: 1010;
 }
 
 .priority-option {
@@ -801,6 +811,7 @@ body {
 	white-space: nowrap;
 	transition: background-color 0.2s;
 	font-size: 0.8em;
+	user-select: none;
 }
 
 .priority-option:first-child {
@@ -1052,6 +1063,7 @@ body {
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 	min-width: 260px;
 	padding: 4px;
+	z-index: 1010;
 }
 
 .date-picker-header {
