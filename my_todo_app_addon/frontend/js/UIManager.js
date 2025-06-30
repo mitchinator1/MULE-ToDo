@@ -430,7 +430,7 @@ export const UIManager = {
 			if (isNaN(date.getTime())) { // Check for invalid date
 				return dateString; // Return original string if invalid
 			}
-			return "Due: " + new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(date);
+			return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(date);
 		} catch (e) {
 			console.error('Error formatting date:', e);
 			return dateString; // Fallback to original string on error

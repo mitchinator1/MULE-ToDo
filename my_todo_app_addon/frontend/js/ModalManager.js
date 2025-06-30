@@ -109,7 +109,7 @@ export const ModalManager = {
             // Set defaults for a new task
             const defaultPriority = 'Medium';
             this.updatePriorityDisplay(defaultPriority);
-            this.elements.modalDueDateDisplay.textContent = 'None';
+            this.elements.modalDueDateDisplay.textContent = 'No Due Date';
             this.populateTaskFormRecurringFields({}); // Reset recurring fields for new task
         }
 
@@ -122,7 +122,7 @@ export const ModalManager = {
 		this.elements.taskNameInput.value = task.title;
 		this.elements.taskFormModal.querySelector('#description').value = task.description;
 		this.elements.taskFormModal.querySelector('#dueDate').value = task.dueDate;
-		this.elements.modalDueDateDisplay.textContent = task.dueDate ? UIManager.formatDateForDisplay(task.dueDate).slice(5) : 'None';
+		this.elements.modalDueDateDisplay.textContent = task.dueDate ? UIManager.formatDateForDisplay(task.dueDate) : 'No Due Date';
 		const priority = task.priority || 'Medium';
 		this.updatePriorityDisplay(priority);
 		this.elements.taskCategorySelect.value = task.categoryId || '';
@@ -419,15 +419,16 @@ export const ModalManager = {
 
     // --- Date Picker (within modal) ---
     toggleDueDateDropdown: function (event) {
-        const container = event.currentTarget.closest('.due-date');
+        const container = event.currentTarget.closest('.due-date-container');
         const dropdown = this.elements.modalDatePickerDropdown;
+        const dueDateLabel = document.querySelector('label[for="dueDate"]');
 
         // Toggle display of the current dropdown
         dropdown.style.display = dropdown.style.display === 'none' ? 'flex' : 'none';
         if (dropdown.style.display === 'flex') {
             // Add a click listener to close the dropdown when clicking outside
             const closeDropdown = (e) => {
-                if (!container.contains(e.target)) {
+                if (!container.contains(e.target) || e.target === dueDateLabel) {
                     dropdown.style.display = 'none';
                     document.removeEventListener('click', closeDropdown);
                 }

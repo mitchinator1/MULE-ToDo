@@ -1131,7 +1131,7 @@ body {
 	}
 
 	.form-group select:hover {
-		border-color: #888;
+		border-color: #fff;
 	}
 
 	.toggle-filters:hover,
@@ -1180,7 +1180,7 @@ body {
 	}
 
 	.form-group .due-date:hover {
-		background: rgba(255, 255, 255, 0.15);
+		border-color: #fff;
 	}
 
 	.form-group input {
