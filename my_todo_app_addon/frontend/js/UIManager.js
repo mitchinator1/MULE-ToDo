@@ -5,6 +5,7 @@ import { ModalManager } from './ModalManager.js'; // Import the new ModalManager
 import { TaskRenderer } from './TaskRenderer.js'; // Import the new TaskRenderer
 import APIManager from './APIManager.js';
 
+let closeUniversalDueDateDropdownHandler = null;
 let closeUniversalPriorityDropdownHandler = null;
 
 export const UIManager = {
