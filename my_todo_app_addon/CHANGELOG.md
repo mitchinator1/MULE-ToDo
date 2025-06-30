@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## 0.9.83
+
+- Fixed addin/removing subtasks from parent task
+
 ## 0.9.82
 
 - Converted individual date pickers to one universal
