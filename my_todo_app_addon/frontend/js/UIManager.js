@@ -441,7 +441,6 @@ export const UIManager = {
 		const dropdown = document.createElement('div');
 		dropdown.className = 'date-picker-dropdown';
 		dropdown.style.display = 'none'; // Start hidden
-		dropdown.style.zIndex = '1010'; // Ensure it's on top
 
 		const header = document.createElement('div');
 		header.className = 'date-picker-header';
@@ -597,6 +596,7 @@ export const UIManager = {
 
 		if (dropdown.style.display === 'block' && dropdown.dataset.taskId === String(taskId)) {
 			this.hideUniversalPriorityDropdown();
+			targetElement.classList.remove('show');
 			return;
 		}
 
@@ -620,11 +620,14 @@ export const UIManager = {
 		dropdown.style.width = `${dropdownWidth}px`; // Set width to match the target
 		dropdown.style.display = 'block';
 
+		targetElement.classList.toggle('show');
+
 		// Use setTimeout to avoid the current click event from immediately closing the dropdown
 		setTimeout(() => {
 			closeUniversalPriorityDropdownHandler = (e) => {
 				if (!dropdown.contains(e.target) && e.target !== targetElement) {
 					this.hideUniversalPriorityDropdown();
+					targetElement.classList.remove('show');
 				}
 			};
 			document.addEventListener('click', closeUniversalPriorityDropdownHandler);

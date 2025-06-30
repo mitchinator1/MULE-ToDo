@@ -7,6 +7,7 @@
     --color-border: #ddd;
     --color-accent-blue: #4285f4;
     --color-hover: rgba(0, 0, 0, 0.05);
+	--color-item-hover: #bbb;
     --font-size-base: 0.8rem;
 }
 
@@ -203,10 +204,6 @@ body {
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.task-item.updating {
-	opacity: 0.5;
-}
-
 .task-item.completed {
 	opacity: 0.6;
 }
@@ -250,12 +247,6 @@ body {
 }
 
 /* Task Content */
-.task-content {
-	display: flex;
-	flex-direction: column;
-	min-width: 0;
-}
-
 .task-title {
 	font-weight: 600;
 	font-size: 0.9rem;
@@ -269,40 +260,16 @@ body {
     justify-content: center;
     cursor: pointer;
     user-select: none;
-    color: #bbb;
+    color: var(--color-item-hover);
     transition: color 0.2s ease-in-out;
 }
 
-.recurring-indicator:hover
-.date-picker-dropdown:hover {
+.recurring-indicator:hover {
     color: #888;
 }
 
 .recurring-indicator .recurring-svg {
     stroke: currentColor;
-}
-
-.task-details {
-	flex-grow: 1;
-	margin: 0 10px;
-}
-
-.task-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-}
-
-.task-meta {
-	display: flex;
-	font-size: 0.9em;
-	margin-bottom: 2px;
-	justify-content: space-between;
-}
-
-.meta-item {
-	display: flex;
-	flex-direction: column;
 }
 
 .meta-label {
@@ -314,13 +281,6 @@ body {
 }
 
 /* Task Actions */
-.task-actions {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	align-self: center;
-}
-
 .task-actions-footer {
 	display: flex;
 	justify-content: flex-start;
@@ -405,18 +365,9 @@ body {
 }
 
 .task-actions-footer .btn:hover,
-.task-actions-footer .details-toggle-btn:hover {
-	color: #bbbbbb;
-}
-
-.details-toggle {
-	background: none;
-	border: none;
-	cursor: pointer;
-	font-size: 1.2em;
-	padding: 0 5px;
-	line-height: 1;
-	color: var(--text-color-secondary);
+.task-actions-footer .details-toggle-btn:hover,
+.task-expand-indicator:hover {
+	color: var(--color-item-hover)
 }
 
 .task-details-collapsible {
@@ -513,10 +464,10 @@ body {
 	padding: 8px 10px 8px 20px;
 	font-weight: 500;
 	color: var(--text-color-secondary);
+	width: 80px;
+	transition: color 0.2s ease;
 }
-.task-expand-indicator:hover {
-	background-color: var(--hover-color);
-}
+
 .task-expand-indicator.hidden {
 	display: none !important;
 }
@@ -547,12 +498,6 @@ body {
 	opacity: 0;
 	z-index: -1;
 	border-radius: 6px;
-}
-
-
-
-.task-container.highlight::before {
-	animation: highlightNew 2s ease-out forwards;
 }
 
 /* Modal */
@@ -723,23 +668,11 @@ body {
     margin-right: 6px;
 }
 
-/* Title styling */
-.title-style {
-	font-weight: 600;
-	font-size: 1.1em;
-	line-height: 1;
-}
-
-/* Description styling */
-.description-style {
-	font-style: italic;
-	line-height: 1.2;
-	resize: none;
-	overflow: hidden;
-	min-height: 24px;
-}
-
 /* Auto-resize textarea */
+.description-style {
+	resize: vertical;
+}
+
 .description-style:focus {
 	height: auto;
 }
@@ -748,11 +681,12 @@ body {
 .priority-container {
 	position: relative;
 	display: inline-block;
+	user-select: none;
 }
 
 .priority {
 	padding: 2px 8px;
-	border-radius: 12px;
+	border-radius: 8px;
 	font-size: 0.8em;
 	white-space: nowrap;
 	min-width: 40px;
@@ -762,6 +696,10 @@ body {
 
 .priority.show {
 	border-radius: 8px 8px 0 0;
+}
+
+.priority-container .priority.show {
+	border-radius: 4px 4px 0 0;
 }
 
 .priority-Low {
@@ -791,8 +729,9 @@ body {
 	min-width: 100%;
 }
 
-.priority-dropdown.show {
-	display: block;
+.priority-dropdown {
+	position: absolute;
+	z-index: 1010;
 }
 
 .priority-option {
@@ -801,6 +740,7 @@ body {
 	white-space: nowrap;
 	transition: background-color 0.2s;
 	font-size: 0.8em;
+	user-select: none;
 }
 
 .priority-option:first-child {
@@ -1042,6 +982,12 @@ body {
 
 .due-date-display {
 	cursor: pointer;
+	transition: color 0.2s ease-in-out;
+}
+
+.due-date-display:hover {
+	color: var(--color-item-hover);
+	border-radius: 4px;
 }
 
 .date-picker-dropdown {
@@ -1052,6 +998,7 @@ body {
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 	min-width: 260px;
 	padding: 4px;
+	z-index: 1010;
 }
 
 .date-picker-header {
@@ -1169,10 +1116,14 @@ body {
 	.filter-controls,
 	.filter-select,
 	.sidebar,
-	.toggle-sidebar::before,
-	.form-group select {
+	.toggle-sidebar::before {
 		background: #1c1c1c;
 		color: #fcfcfc;
+	}
+
+	.form-group select {
+		background: #111;
+		color: #c1c1c1;
 	}
 
 	.toggle-filters:hover,
