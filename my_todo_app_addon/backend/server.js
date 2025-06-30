@@ -21,6 +21,9 @@ const MQTT_USERNAME = process.env.MQTT_USERNAME;
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 let mqttClient; // Declare mqttClient globally
 
+// Gemini API Configuration
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
 // Home Assistant MQTT Discovery topic prefix
 const HA_DISCOVERY_PREFIX = 'homeassistant';
 const ADDON_SLUG = 'mule_todo'; // Match your add-on slug

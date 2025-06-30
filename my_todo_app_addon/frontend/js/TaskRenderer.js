@@ -221,7 +221,6 @@ export const TaskRenderer = {
 
 		// Event listener for the new toggle
 		detailsToggleBtn.addEventListener('click', (e) => {
-			e.stopPropagation();
 			const isCollapsing = detailsCollapsible.classList.contains('expanded');
 			const detailsText = detailsToggleBtn.querySelector('span');
 

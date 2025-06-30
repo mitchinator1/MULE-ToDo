@@ -125,8 +125,6 @@ export const UIManager = {
 	},
 
 	toggleSubtasks: function (taskId, event) {
-		if (event) event.stopPropagation();
-
 		const subtasksContainer = document.getElementById(`subtasks-${taskId}`);
 		const indicator = event.target.closest('.task-expand-indicator');
 
@@ -156,7 +154,25 @@ export const UIManager = {
 		const taskElement = document.querySelector(`.task-container[data-task-id="${taskId}"]`);
 		if (!taskElement) return;
 
+		const subtasksContainer = taskElement.closest('.subtasks-container');
+
+		// Remove the element from the DOM
 		taskElement.remove();
+
+		// If it was a subtask and its container is now empty, clean up
+		if (subtasksContainer && !subtasksContainer.querySelector('.task-container')) {
+			// Find the parent task container
+			const parentTaskContainer = subtasksContainer.closest('.task-container');
+			if (parentTaskContainer) {
+				// Hide the expand indicator on the parent
+				const expandIndicator = parentTaskContainer.querySelector('.task-expand-indicator');
+				if (expandIndicator) {
+					expandIndicator.classList.add('hidden');
+				}
+			}
+			// Remove the now-empty subtasks container
+			subtasksContainer.remove();
+		}
 	},
 
 	renderCategories: function (categories) {
@@ -312,8 +328,7 @@ export const UIManager = {
 
 		if (task.parentTaskId) {
 			// This is a subtask
-			const parentContainer =
-				document.querySelector(`.task-container[data-task-id="${task.parentTaskId}"]`);
+			const parentContainer =	document.querySelector(`.task-container[data-task-id="${task.parentTaskId}"] .task-details-collapsible`);
 			if (parentContainer) {
 				let subtasksContainer = parentContainer.querySelector('.subtasks-container');
 				if (!subtasksContainer) {
@@ -327,9 +342,9 @@ export const UIManager = {
 				// Add the new subtask to the container
 				subtasksContainer.appendChild(taskElement);
 				// Ensure the parent task shows it has subtasks
-				const parentTaskItem = parentContainer.querySelector('.task-item');
-				const expandIndicator = parentTaskItem.querySelector('.task-expand-indicator');
+				const expandIndicator = parentContainer.querySelector('.task-expand-indicator');
 				expandIndicator.classList.remove('hidden');
+				expandIndicator.classList.add('expanded');
 				// Expand the subtask container to show the new subtask.
 				// The new subtask is already in the container, so scrollHeight will give the correct new height.
 				subtasksContainer.classList.add('expanded');
