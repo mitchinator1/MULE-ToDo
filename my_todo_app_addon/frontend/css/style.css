@@ -468,6 +468,13 @@ body {
 	transition: color 0.2s ease;
 }
 
+<<<<<<< HEAD
+=======
+.task-expand-indicator:hover {
+	color: #bbbbbb;
+}
+
+>>>>>>> a1f21dd6791d9ad7bdf9fc6afbde4e8c49faadc3
 .task-expand-indicator.hidden {
 	display: none !important;
 }

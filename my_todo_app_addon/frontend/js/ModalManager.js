@@ -419,7 +419,11 @@ export const ModalManager = {
 
     // --- Date Picker (within modal) ---
     toggleDueDateDropdown: function (event) {
+<<<<<<< HEAD
         const container = event.currentTarget.closest('.due-date');
+=======
+        const container = event.currentTarget.closest('.due-date-container');
+>>>>>>> a1f21dd6791d9ad7bdf9fc6afbde4e8c49faadc3
         const dropdown = this.elements.modalDatePickerDropdown;
 
         // Toggle display of the current dropdown
