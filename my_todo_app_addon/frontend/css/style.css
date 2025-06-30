@@ -468,6 +468,10 @@ body {
 	transition: color 0.2s ease;
 }
 
+.task-expand-indicator:hover {
+	color: #bbbbbb;
+}
+
 .task-expand-indicator.hidden {
 	display: none !important;
 }
