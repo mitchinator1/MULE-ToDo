@@ -441,9 +441,9 @@ export const ModalManager = {
     },
 
     setQuickDate: function (event, type) {
-        event.stopPropagation(); // Prevent event from bubbling up and closing dropdown immediately
+        event.stopPropagation();
         const now = new Date();
-        const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+        const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
         let date;
         switch (type) {
             case 'today': date = today; break;

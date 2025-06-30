@@ -90,7 +90,6 @@ body {
 .toggle-sidebar:hover {
 	background-color: rgba(0, 0, 0, 0.1);
 	border-radius: 4px;
-
 }
 
 .sidebar.collapsed .toggle-sidebar {
@@ -274,7 +273,8 @@ body {
     transition: color 0.2s ease-in-out;
 }
 
-.recurring-indicator:hover {
+.recurring-indicator:hover
+.date-picker-dropdown:hover {
     color: #888;
 }
 
@@ -403,6 +403,7 @@ body {
 	color: #666;
 	margin: 0 -2px;
 }
+
 .task-actions-footer .btn:hover,
 .task-actions-footer .details-toggle-btn:hover {
 	color: #bbbbbb;
@@ -1039,35 +1040,18 @@ body {
 	font-style: italic;
 }
 
-.due-date-container {
-	position: relative;
-}
-
-.due-date {
+.due-date-display {
 	cursor: pointer;
-}
-
-.due-date:hover {
-	background: var(--color-hover);
-	border-radius: 4px;
 }
 
 .date-picker-dropdown {
 	flex-direction: column;
 	position: absolute;
-	top: 20px;
-	left: -110px;
 	background: white;
 	border-radius: 6px;
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 	min-width: 260px;
 	padding: 4px;
-	z-index: 1;
-}
-
-.modal .date-picker-dropdown {
-	top: 100%;
-	left: 0;
 }
 
 .date-picker-header {

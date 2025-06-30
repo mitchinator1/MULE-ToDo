@@ -1,10 +1,10 @@
 import { DataManager } from './DataManager.js';
 import { TaskManager } from './TaskManager.js';
 import { Snackbar, Throbber } from './UIHelpers.js';
-import { ModalManager } from './ModalManager.js'; // Import the new ModalManager
-import { TaskRenderer } from './TaskRenderer.js'; // Import the new TaskRenderer
-import APIManager from './APIManager.js';
+import { ModalManager } from './ModalManager.js';
+import { TaskRenderer } from './TaskRenderer.js';
 
+let closeUniversalDueDateDropdownHandler = null;
 let closeUniversalPriorityDropdownHandler = null;
 
 export const UIManager = {
@@ -408,14 +408,14 @@ export const UIManager = {
 	// Helper function to format date for display
 	formatDateForDisplay: function (dateString) {
 		if (!dateString) {
-			return 'None';
+			return 'No Due Date';
 		}
 		try {
 			const date = new Date(dateString);
 			if (isNaN(date.getTime())) { // Check for invalid date
 				return dateString; // Return original string if invalid
 			}
-			return "Due: " + new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+			return "Due: " + new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(date);
 		} catch (e) {
 			console.error('Error formatting date:', e);
 			return dateString; // Fallback to original string on error
@@ -424,27 +424,59 @@ export const UIManager = {
 
 	createUniversalDueDateDropdown: function () {
 		const dropdown = document.createElement('div');
-		dropdown.className = 'due-date-dropdown'; // Use existing class for styling
-		dropdown.style.position = 'absolute'; // Must be positioned absolutely
+		dropdown.className = 'date-picker-dropdown';
 		dropdown.style.display = 'none'; // Start hidden
 		dropdown.style.zIndex = '1010'; // Ensure it's on top
 
-		const options = ['Today', 'Tomorrow', 'Next Week', 'Next Month', 'No Due Date'];
+		const header = document.createElement('div');
+		header.className = 'date-picker-header';
+
+		const clearDate = document.createElement('span');
+		clearDate.className = 'clear-date';
+		clearDate.textContent = 'Clear';
+		clearDate.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const taskId = dropdown.dataset.taskId;
+			if (taskId) {
+				TaskRenderer.updateDueDateDisplay(taskId, '');
+				TaskManager.updateTaskField(taskId, 'dueDate', '');
+			}
+			this.hideUniversalDueDateDropdown();
+		});
+		header.appendChild(clearDate);
+
+		const quickDates = document.createElement('span');
+		quickDates.className = 'quick-dates';
+		const options = ['Today', 'Tomorrow', 'Next Week'];
 		options.forEach(option => {
-			const optionElement = document.createElement('div');
-			optionElement.className = `due-date-option due-date-${option.toLowerCase().replace(/ /g, '-')}`;
+			const optionElement = document.createElement('span');
 			optionElement.textContent = option;
 			optionElement.addEventListener('click', (e) => {
 				e.stopPropagation();
 				const taskId = dropdown.dataset.taskId;
 				if (taskId) {
-					TaskManager.updateDueDateDisplay(e, parseInt(taskId, 10), option);
-					TaskManager.updateTaskField(taskId, 'dueDate', newDueDate);
+					TaskRenderer.setQuickDate(e, taskId, option.replace(/(?:^\w|[A-Z]|\b\w)/g, (ltr, idx) => idx === 0 ? ltr.toLowerCase() : ltr.toUpperCase()).replace(/\s+/g, ''));
 				}
 				this.hideUniversalDueDateDropdown();
 			});
-			dropdown.appendChild(optionElement);
+			quickDates.appendChild(optionElement);
 		});
+
+		header.appendChild(quickDates);
+		dropdown.appendChild(header);
+
+		const dateInput = document.createElement('input');
+		dateInput.type = 'date';
+		dateInput.className = 'date-input';
+		dateInput.addEventListener('change', (e) => {
+			e.stopPropagation();
+			const taskId = dropdown.dataset.taskId;
+			if (taskId) {
+				TaskManager.updateDueDate(e, taskId)
+			}
+			this.hideUniversalDueDateDropdown();
+		});
+		dropdown.appendChild(dateInput);
 
 		return dropdown;
 	},
@@ -456,15 +488,18 @@ export const UIManager = {
 			document.removeEventListener('click', closeUniversalDueDateDropdownHandler);
 			closeUniversalDueDateDropdownHandler = null;
 		}
-		if (dropdown.style.display === 'block' && dropdown.dataset.taskId === String(taskId)) {
+		if (dropdown.style.display === 'flex' && dropdown.dataset.taskId === String(taskId)) {
 			this.hideUniversalDueDateDropdown();
 			return;
 		}
 		// Store the task ID on the dropdown so its options know which task to update
 		dropdown.dataset.taskId = taskId;
-		// Position and show the dropdown
+
+		// Show then position the dropdown
+		dropdown.style.display = 'flex';
+
 		const rect = targetElement.getBoundingClientRect();
-		const dropdownWidth = rect.width;
+		const dropdownWidth = dropdown.offsetWidth;
 		let dropdownLeft = rect.left;
 		const viewportWidth = window.innerWidth;
 		const margin = 8; // A small margin from the viewport edge
@@ -472,10 +507,22 @@ export const UIManager = {
 		if (dropdownLeft + dropdownWidth > viewportWidth) {
 			dropdownLeft = viewportWidth - dropdownWidth - margin;
 		}
+
 		dropdown.style.left = `${dropdownLeft}px`;
 		dropdown.style.top = `${rect.bottom + window.scrollY}px`;
-		dropdown.style.width = `${dropdownWidth}px`; // Set width to match the target
-		dropdown.style.display = 'block';
+
+		// Populate the date input with the current due date if available
+		const taskData = DataManager.getTaskById(taskId);
+		if (taskData && taskData.dueDate) {
+			const dateInput = dropdown.querySelector('.date-input');
+			dateInput.value = taskData.dueDate.split('T')[0];
+		}
+		else {
+			// Clear the date input if no due date is set
+			const dateInput = dropdown.querySelector('.date-input');
+			dateInput.value = '';
+		}
+
 		// Use setTimeout to avoid the current click event from immediately closing the dropdown
 		setTimeout(() => {
 			closeUniversalDueDateDropdownHandler = (e) => {

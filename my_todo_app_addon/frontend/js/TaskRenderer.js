@@ -123,6 +123,7 @@ export const TaskRenderer = {
 		// Due Date
 		const dueDateDisplay = document.createElement('div');
 		dueDateDisplay.className = 'due-date-display';
+		dueDateDisplay.dataset.rawDate = taskData.dueDate || ''; // Store raw date for date input
 		dueDateDisplay.textContent = taskData.dueDate ? this.UIManager.formatDateForDisplay(taskData.dueDate) : 'No Due Date';
 		dueDateDisplay.addEventListener('click', (e) => this.UIManager.toggleUniversalDueDateDropdown(e.currentTarget, taskData.id));
 		summaryMeta.appendChild(dueDateDisplay);
@@ -387,7 +388,7 @@ export const TaskRenderer = {
 	setQuickDate: function (event, taskId, type) {
 		event.stopPropagation();
 		const now = new Date();
-		const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+		const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 		let date;
 		switch (type) {
 			case 'today': date = today; break;
@@ -399,24 +400,12 @@ export const TaskRenderer = {
 		TaskManager.updateTaskField(taskId, 'dueDate', formattedDate);
 	},
 
-	clearDueDate: function (event, taskId) {
-		event.stopPropagation();
-		this.updateDueDateDisplay(taskId, '');
-		TaskManager.updateTaskField(taskId, 'dueDate', '');
-	},
-
 	updateDueDateDisplay: function (taskId, newDate) {
-		const container = document.querySelector(`.task-container[data-task-id="${taskId}"] .due-date-container`);
-		if (!container) return;
+		const display = document.querySelector(`.task-container[data-task-id="${taskId}"] .due-date-display`);
+		if (!display) return;
 
-		const dueDate = container.querySelector('.due-date');
-		const dropdown = container.querySelector('.date-picker-dropdown');
-		const dateInput = dropdown.querySelector('.date-input');
-
-		dueDate.setAttribute('data-raw-date', newDate);
-		dueDate.textContent = this.UIManager.formatDateForDisplay(newDate);
-		dateInput.value = newDate;
-		dropdown.style.display = 'none';
+		display.setAttribute('data-raw-date', newDate);
+		display.textContent = this.UIManager.formatDateForDisplay(newDate);
 	},
 
 	updatePriorityDisplay: function (taskId, priority) {

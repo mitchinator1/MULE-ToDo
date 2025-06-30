@@ -424,6 +424,7 @@ export const TaskManager = {
 	updateDueDate(event, taskId) {
 		event.stopPropagation();
 		const newDueDate = event.target.value;
+		console.log('Updating due date for task:', taskId, 'to', newDueDate);
 		TaskRenderer.updateDueDateDisplay(taskId, newDueDate);
 		this.updateTaskField(taskId, 'dueDate', newDueDate);
 	},
