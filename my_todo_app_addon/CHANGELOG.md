@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## 0.9.86
+
+- Style changes
+- Due date dropdown fixes
+- Due date display fixes
+
 ## 0.9.84
 
 - Priority dropdown fixes
