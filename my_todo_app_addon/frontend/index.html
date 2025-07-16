@@ -9,14 +9,35 @@
 <body>
     <div id="sidebar" class="sidebar collapsed">
         <div class="sidebar-header">
-            <h3>Categories</h3>
+            <h3>Menu</h3>
             <button id="toggleSidebar" class="toggle-sidebar"></button>
+        </div>
+
+        <div class="sidebar-title">
+            <span class="collapse-indicator collapsed" id="categoryIcon"></span>
+            <span class="collapsed-icon" id="categoryIconCollapsed"></span>
+            <span class="title-text">Categories</span>
+            <span class="list-count" id="categoryCount">0</span>
+            <button id="showCategoryForm" class="edit-btn">+</button>
         </div>
         <div id="categoryList" class="category-list">
             <!-- Categories will be dynamically added here -->
         </div>
-        <div class="sidebar-footer">
-            <button id="showCategoryForm" class="add-category-button">+</button>
+
+        <div class="sidebar-title">
+            <span class="collapse-indicator collapsed" id="tagIcon"></span>
+            <span class="collapsed-icon" id="tagIconCollapsed"></span>
+            <span class="title-text">Tags</span>
+            <span class="list-count" id="tagCount">0</span>
+            <button id="showTagForm" class="edit-btn">+</button>
+        </div>
+        <div id="tagList" class="tag-list">
+            <!-- Categories will be dynamically added here -->
+        </div>
+        <div class="sidebar-title">
+            <span class="collapse-indicator" id="settingsIcon"></span>
+            <span class="collapsed-icon" id="settingsIconCollapsed"></span>
+            <span class="title-text">Settings</span>
         </div>
     </div>
     <div id="mainContent" class="main-content">
@@ -102,6 +123,14 @@
                     <select id="taskCategory" name="taskCategory">
                         <!-- dynamically populated -->
                     </select>
+                </div>
+                <div class="form-group form-row">
+                    <select id="availableTagsSelect" name="taskTags">
+                        <!-- dynamically populated -->
+                    </select>
+                    <div id="selectedTagsDisplay" class="selected-tags-display">
+                        <!-- Selected tags will be appended here -->
+                    </div>
                 </div>
                 <div class="form-group recurring-controls">
                     <div class="form-row">
@@ -273,6 +302,20 @@
             <div class="new-category">
                 <input type="text" class="inline-input" id="newCategoryName" placeholder="New category name" />
                 <button id="addCategoryBtn" class="btn btn-primary">Add Category</button>
+            </div>
+        </div>
+    </div>
+    <!-- Tag Management Modal -->
+    <div id="tagModal" class="modal">
+        <div class="modal-content">
+            <span id="tagModalClose" class="close-modal">&times;</span>
+            <h3>Manage Tags</h3>
+
+            <ul id="tagModalList" class="tag-list expanded"></ul>
+
+            <div class="new-tag">
+                <input type="text" class="inline-input" id="newTagName" placeholder="New tag name" />
+                <button id="addTagBtn" class="btn btn-primary">Add Tag</button>
             </div>
         </div>
     </div>

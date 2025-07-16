@@ -1,12 +1,12 @@
 const fieldMap = {
-    title: 'title',
-    completed: 'completed',
-    description: 'description',
-    dueDate: 'due_date',
-    priority: 'priority',
-    status: 'status',
-    parentTaskId: 'parent_task_id',
-    categoryId: 'category_id',
+    title: "title",
+    completed: "completed",
+    description: "description",
+    dueDate: "due_date",
+    priority: "priority",
+    status: "status",
+    parentTaskId: "parent_task_id",
+    categoryId: "category_id",
 };
 
 const reverseFieldMap = Object.fromEntries(

@@ -114,6 +114,34 @@ const APIManager = {
 		return this._fetch(`${API_BASE_URL}/categories/${id}`, {
 			method: 'DELETE'
 		});
+    },
+
+    getTags: async function () {
+		return this._fetch(`${API_BASE_URL}/tags`, {
+			method: 'GET'
+		});
+	},
+
+	addTag: async function (data) {
+		return this._fetch(`${API_BASE_URL}/tags`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(data)
+		});
+	},
+
+	updateTag: async function (id, data) {
+		return this._fetch(`${API_BASE_URL}/tags/${id}`, {
+			method: 'PUT',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(data)
+		});
+	},
+
+	deleteTag: async function (id) {
+		return this._fetch(`${API_BASE_URL}/tags/${id}`, {
+			method: 'DELETE'
+		});
 	},
 };
 

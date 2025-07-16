@@ -3,6 +3,7 @@ import { TaskManager } from './TaskManager.js';
 import { Snackbar, Throbber } from './UIHelpers.js';
 import { ModalManager } from './ModalManager.js';
 import { TaskRenderer } from './TaskRenderer.js';
+import { createSVG } from './SVGIcons.js';
 
 let closeUniversalDueDateDropdownHandler = null;
 let closeUniversalPriorityDropdownHandler = null;
@@ -40,6 +41,24 @@ export const UIManager = {
 
 	setupEventListeners: function () {
 		document.getElementById('toggleFilters').addEventListener('click', (e) => this.toggleFilters());
+
+		const setupCollapsibleList = (listId) => {
+			const list = document.getElementById(listId);
+			if (!list) return;
+
+			// The header is assumed to be the element directly before the list.
+			// This covers the user's request for an `h3` and the likely .sidebar-title element.
+			const header = list.previousElementSibling;
+			const indicator = header ? header.querySelector('.collapse-indicator') : null;
+			if (header && indicator && (header.matches('.sidebar-title') || header.tagName.toLowerCase() === 'h3')) {
+				indicator.addEventListener('click', () => {
+					list.classList.toggle('collapsed');
+					indicator.classList.toggle('collapsed'); // Only toggle the indicator's collapse state
+				});
+			}
+		};
+		setupCollapsibleList('categoryList');
+		setupCollapsibleList('tagList');
 	},
 
 	setupRecurringControls: function (handlers) {
@@ -103,6 +122,7 @@ export const UIManager = {
 		ModalManager.hideRecurringEditForm();
 	},
 
+	// Categories
 	showCategoryForm: function () {
 		ModalManager.showCategoryForm();
 	},
@@ -118,6 +138,24 @@ export const UIManager = {
 
 	hideCategoryForm: function () {
 		document.getElementById('categoryModal').style.display = 'none';
+	},
+
+	// Tags
+	showTagForm: function () {
+		ModalManager.showTagForm();
+	},
+
+	refreshTagDropdown() {
+		const select = document.getElementById('taskTags'); // This is the select in the task form modal
+		if (!select) return;
+
+		select.innerHTML = DataManager.state.tags.map(t =>
+			`<option value="${t.id ?? ''}">${t.name}</option>`
+		).join('');
+	},
+
+	hideTagForm: function () {
+		document.getElementById('tagModal').style.display = 'none';
 	},
 
 	createTaskElement: function (task) {
@@ -185,18 +223,47 @@ export const UIManager = {
 		categories.forEach(category => {
 			const categoryItem = document.createElement('div');
 			categoryItem.className = 'category-item';
-			categoryItem.innerHTML = `<span class="category-text">${category.name}</span>`;
+			categoryItem.innerHTML = `${createSVG('category', 16, 16, 'icon-filled')}<span class="category-text">${category.name}</span>`;
 			categoryItem.onclick = () => TaskManager.selectCategory(category);
 			if (category.name === DataManager.state.currentCategory.name) {
 				categoryItem.classList.add('active');
 			}
 			categoryList.appendChild(categoryItem);
 		});
+
+		document.getElementById('categoryCount').textContent = categories.length - 1; // Exclude the "No Category" option
 	},
 
 	updateCategorySelection: function (category) {
 		document.querySelectorAll('.category-item').forEach(item => {
 			item.classList.toggle('active', item.textContent.trim() === category.name);
+		});
+	},
+
+	renderTags: function (tags) {
+		const tagList = document.getElementById('tagList');
+		if (!tagList) {
+			console.error('Tag list element not found');
+			return;
+		}
+		tagList.innerHTML = '';
+		tags.forEach(tag => {
+			const tagItem = document.createElement('div');
+			tagItem.className = 'tag-item';
+			tagItem.innerHTML = `${createSVG('tag', 16, 16, 'icon-filled')}<span class="tag-text">${tag.name}</span>`;
+			tagItem.onclick = () => TaskManager.selectTag(tag);
+			if (tag.name === DataManager.state.currentTag.name) {
+				tagItem.classList.add('active');
+			}
+			tagList.appendChild(tagItem);
+		});
+
+		document.getElementById('tagCount').textContent = tags.length - 1; // Exclude the "No Tag" option
+	},
+
+	updateTagSelection: function (tag) {
+		document.querySelectorAll('.tag-item').forEach(item => {
+			item.classList.toggle('active', item.textContent.trim() === tag.name);
 		});
 	},
 
@@ -206,6 +273,11 @@ export const UIManager = {
 
 		toggleButton.onclick = () => {
 			sidebar.classList.toggle('collapsed');
+			sidebar.querySelector('#categoryList').classList.toggle('collapsed', !sidebar.classList.contains('collapsed'));
+			sidebar.querySelector('#tagList').classList.toggle('collapsed', !sidebar.classList.contains('collapsed'));
+			sidebar.querySelectorAll('.collapse-indicator').forEach(indicator => {
+				indicator.classList.toggle('collapsed', !sidebar.classList.contains('collapsed'));
+			});
 		};
 	},
 
