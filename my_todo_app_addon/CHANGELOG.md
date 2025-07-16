@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## 0.9.87
+
+- Added Tags (not yet tied to tasks)
+- Fixed dark/light mode to use variables for colors
+- Revised side panel / filters panel
+
 ## 0.9.86
 
 - Style changes

@@ -1,15 +1,15 @@
 console.log("SERVER.JS: STARTING EXECUTION");
 
-const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const cors = require('cors');
-const mqtt = require('mqtt');
+const express = require("express");
+const sqlite3 = require("sqlite3").verbose();
+const cors = require("cors");
+const mqtt = require("mqtt");
 
-const { fieldMap, reverseFieldMap } = require('./utils/fieldMap');
+const { fieldMap, reverseFieldMap } = require("./utils/fieldMap");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const BIND_IP = '0.0.0.0';
+const BIND_IP = "0.0.0.0";
 
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Enable parsing of JSON request bodies
@@ -25,8 +25,8 @@ let mqttClient; // Declare mqttClient globally
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 // Home Assistant MQTT Discovery topic prefix
-const HA_DISCOVERY_PREFIX = 'homeassistant';
-const ADDON_SLUG = 'mule_todo'; // Match your add-on slug
+const HA_DISCOVERY_PREFIX = "homeassistant";
+const ADDON_SLUG = "mule_todo"; // Match your add-on slug
 
 // Define the discovery payload for an "upcoming tasks" sensor
 const UPCOMING_TASKS_SENSOR_CONFIG_TOPIC = `${HA_DISCOVERY_PREFIX}/sensor/${ADDON_SLUG}/upcoming_tasks/config`;
@@ -40,13 +40,14 @@ const UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD = {
     json_attributes_topic: UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, // Use this for a list of tasks
     unit_of_measurement: "tasks",
     icon: "mdi:calendar-check",
-    device: { // Optional: Create a device in HA for your add-on
+    device: {
+        // Optional: Create a device in HA for your add-on
         identifiers: [`${ADDON_SLUG}_device`],
         name: "MULE To-Do",
         model: "MULE To-Do Add-on",
         manufacturer: "MULE",
-        sw_version: process.env.ADDON_VERSION || "unknown" // Get version from HA supervisor environment if available
-    }
+        sw_version: process.env.ADDON_VERSION || "unknown", // Get version from HA supervisor environment if available
+    },
 };
 
 // Constants for upcoming tasks logic
@@ -54,16 +55,16 @@ const UPCOMING_TASKS_WINDOW_DAYS = 7;
 const UPCOMING_TASKS_PUBLISH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 // Connect to SQLite database. The .db file will be created if it doesn't exist.
-const db = new sqlite3.Database('/data/todo.db', (err) => {
+const db = new sqlite3.Database("/data/todo.db", (err) => {
     if (err) {
-        console.error('Error connecting to database:', err.message);
+        console.error("Error connecting to database:", err.message);
         process.exit(1);
     }
 
-    console.log('Connected to the SQLite database.');
+    console.log("Connected to the SQLite database.");
 
     // Enable foreign key constraints
-    db.run('PRAGMA foreign_keys = ON');
+    db.run("PRAGMA foreign_keys = ON");
 
     // Create tables in sequence
     db.serialize(() => {
@@ -132,7 +133,8 @@ const db = new sqlite3.Database('/data/todo.db', (err) => {
         `);
 
         // Task History
-        db.run(`
+        db.run(
+            `
             CREATE TABLE IF NOT EXISTS task_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 task_id INTEGER NOT NULL,
@@ -142,15 +144,17 @@ const db = new sqlite3.Database('/data/todo.db', (err) => {
                 changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
             )
-        `, (createErr) => {
-            if (createErr) {
-                console.error('Error creating tables:', createErr.message);
-                process.exit(1);
-            } else {
-                console.log('All tables ensured.');
-                connectMqttAndStartServer();
+        `,
+            (createErr) => {
+                if (createErr) {
+                    console.error("Error creating tables:", createErr.message);
+                    process.exit(1);
+                } else {
+                    console.log("All tables ensured.");
+                    connectMqttAndStartServer();
+                }
             }
-        });
+        );
     });
 });
 
@@ -159,14 +163,18 @@ const MAX_HISTORY_PER_TASK = 20;
 function logTaskHistory(taskId, field, oldValue, newValue) {
     if (oldValue === newValue) return; // skip unchanged values
 
-    db.run(`
+    db.run(
+        `
         INSERT INTO task_history (task_id, field_changed, old_value, new_value)
         VALUES (?, ?, ?, ?)
-    `, [taskId, field, String(oldValue), String(newValue)], function (err) {
-        if (err) {
-            console.error(`Error logging history for task ${taskId} field '${field}':`, err.message);
-        } else {
-            db.run(`
+    `,
+        [taskId, field, String(oldValue), String(newValue)],
+        function (err) {
+            if (err) {
+                console.error(`Error logging history for task ${taskId} field '${field}':`, err.message);
+            } else {
+                db.run(
+                    `
                 DELETE FROM task_history
                 WHERE task_id = ?
                 AND id NOT IN (
@@ -175,59 +183,74 @@ function logTaskHistory(taskId, field, oldValue, newValue) {
                     ORDER BY changed_at DESC
                     LIMIT ?
                 )
-            `, [taskId, taskId, MAX_HISTORY_PER_TASK], (pruneErr) => {
-                if (pruneErr) {
-                    console.error('Error pruning task history:', pruneErr.message);
-                }
-            });
+            `,
+                    [taskId, taskId, MAX_HISTORY_PER_TASK],
+                    (pruneErr) => {
+                        if (pruneErr) {
+                            console.error("Error pruning task history:", pruneErr.message);
+                        }
+                    }
+                );
+            }
         }
-    });
+    );
 }
 
 const processTaskRow = (row) => {
-	const mappedRow = {};
+    const mappedRow = {};
 
-	for (const key in row) {
-		const frontendKey = reverseFieldMap[key] || key;
-		mappedRow[frontendKey] = row[key];
-	}
+    for (const key in row) {
+        const frontendKey = reverseFieldMap[key] || key;
+        mappedRow[frontendKey] = row[key];
+    }
 
-	// Convert recurring fields into nested structure
-	const {
-		frequency,
-		interval,
-		by_day,
-		by_month_day,
-		recurring_start_date,
-		recurring_end_date,
-		recurring_end_type,
-		recurring_end_after_occurrences
-	} = row;
+    // Convert recurring fields into nested structure
+    const { frequency, interval, by_day, by_month_day, recurring_start_date, recurring_end_date, recurring_end_type, recurring_end_after_occurrences } = row;
 
-	const hasRecurring =
-		frequency || interval || by_day || by_month_day || recurring_start_date || recurring_end_date || recurring_end_type;
+    const hasRecurring = frequency || interval || by_day || by_month_day || recurring_start_date || recurring_end_date || recurring_end_type;
 
-	if (hasRecurring) {
-		const recurring = {
-			frequency: frequency || null,
-			interval: interval, // interval can be 0, so don't default to null
-			by_day: by_day || null,
-			by_month_day: by_month_day || null,
-			start_date: recurring_start_date || null,
+    if (hasRecurring) {
+        const recurring = {
+            frequency: frequency || null,
+            interval: interval, // interval can be 0, so don't default to null
+            by_day: by_day || null,
+            by_month_day: by_month_day || null,
+            start_date: recurring_start_date || null,
             end: {
                 date: recurring_end_date || null,
-				type: recurring_end_type || 'never',
+                type: recurring_end_type || "never",
                 after_occurrences: recurring_end_after_occurrences || null,
-			}
-		};
+            },
+        };
 
-		mappedRow.recurring = recurring;
-	} else {
-		mappedRow.recurring = null;
-	}
+        mappedRow.recurring = recurring;
+    } else {
+        mappedRow.recurring = null;
+    }
 
-	return mappedRow;
+    return mappedRow;
 };
+
+async function processTaskRowWithTags(row) {
+    const mappedRow = processTaskRow(row);
+    mappedRow.tags = await getTagsForTask(row.id);
+    return mappedRow;
+}
+
+function getTagsForTask(taskId) {
+    return new Promise((resolve, reject) => {
+        db.all(
+            `SELECT tags.id, tags.name FROM tags
+             INNER JOIN task_tags ON tags.id = task_tags.tag_id
+             WHERE task_tags.task_id = ?`,
+            [taskId],
+            (err, rows) => {
+                if (err) return reject(err);
+                resolve(rows.map((row) => row.id)); // or row.name if you want names
+            }
+        );
+    });
+}
 
 function debounce(fn, delay) {
     let timeout;
@@ -243,18 +266,18 @@ function connectMqttAndStartServer() {
         port: MQTT_PORT,
         username: MQTT_USERNAME,
         password: MQTT_PASSWORD,
-        clientId: `${ADDON_SLUG}_${Math.random().toString(16).substring(2, 8)}` // Unique client ID
+        clientId: `${ADDON_SLUG}_${Math.random().toString(16).substring(2, 8)}`, // Unique client ID
     };
 
     console.log(`MQTT Connection Attempt: Broker=${MQTT_BROKER}, Port=${MQTT_PORT}`);
 
     mqttClient = mqtt.connect(`mqtt://${MQTT_BROKER}`, mqttOptions);
 
-    mqttClient.on('connect', () => {
-        console.log('MQTT Connected.');
+    mqttClient.on("connect", () => {
+        console.log("MQTT Connected.");
         // Publish discovery message
         mqttClient.publish(UPCOMING_TASKS_SENSOR_CONFIG_TOPIC, JSON.stringify(UPCOMING_TASKS_SENSOR_CONFIG_PAYLOAD), { retain: true });
-        console.log('Published MQTT Discovery for Upcoming Tasks Sensor.');
+        console.log("Published MQTT Discovery for Upcoming Tasks Sensor.");
 
         // Initial state update
         debouncedPublishUpcomingTasksState(); // Use debounced for initial and subsequent calls
@@ -263,17 +286,17 @@ function connectMqttAndStartServer() {
         setInterval(debouncedPublishUpcomingTasksState, UPCOMING_TASKS_PUBLISH_INTERVAL_MS);
     });
 
-    mqttClient.on('error', (err) => {
-        console.error('MQTT Error:', err);
+    mqttClient.on("error", (err) => {
+        console.error("MQTT Error:", err);
         // Do not exit on MQTT error, just log. The app can still run.
     });
 
-    mqttClient.on('offline', () => {
-        console.warn('MQTT client went offline.');
+    mqttClient.on("offline", () => {
+        console.warn("MQTT client went offline.");
     });
 
-    mqttClient.on('reconnect', () => {
-        console.log('MQTT client reconnected.');
+    mqttClient.on("reconnect", () => {
+        console.log("MQTT client reconnected.");
     });
 
     // Start the Express server
@@ -282,15 +305,14 @@ function connectMqttAndStartServer() {
         console.log("SERVER.JS: HTTP server successfully listening.");
     });
 
-    httpServer.on('error', (err) => {
-        console.error('HTTP Server Error (from event listener):', err.message, err.stack);
+    httpServer.on("error", (err) => {
+        console.error("HTTP Server Error (from event listener):", err.message, err.stack);
         process.exit(1);
     });
 
-    httpServer.on('close', () => {
-        console.log('HTTP Server Closed (from event listener).');
+    httpServer.on("close", () => {
+        console.log("HTTP Server Closed (from event listener).");
     });
-
 }
 
 // Function to calculate and publish upcoming tasks state
@@ -303,19 +325,23 @@ function publishUpcomingTasksState() {
     // Select progress and category_id to be included in MQTT attributes
     db.all(`SELECT id, title, description, created_at, due_date, priority, status, category_id FROM tasks WHERE completed = 0 AND due_date IS NOT NULL AND due_date != ""`, [], (err, rows) => {
         if (err) {
-            console.error('Error fetching tasks for MQTT state:', err.message);
-            mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, "0", { retain: false });
+            console.error("Error fetching tasks for MQTT state:", err.message);
+            mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, "0", {
+                retain: false,
+            });
             console.log(`Published upcoming tasks count: 0 (due to error)`);
-            mqttClient.publish(UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, "[]", { retain: false }); // Publish empty array on error
+            mqttClient.publish(UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC, "[]", {
+                retain: false,
+            }); // Publish empty array on error
             return;
         }
 
         const now = new Date();
         const sevenDaysFromNow = new Date(now.getTime() + UPCOMING_TASKS_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-		const upcomingTasks = [];
+        const upcomingTasks = [];
 
-        rows.forEach(task => {
+        rows.forEach((task) => {
             try {
                 const taskDueDate = new Date(task.due_date); // Use task.due_date from DB row
 
@@ -345,17 +371,19 @@ function publishUpcomingTasksState() {
         });
 
         const count = upcomingTasks.length;
-	    const nextDueId = count > 0 ? upcomingTasks[0].id : null;
-        mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, String(count), { retain: false });
+        const nextDueId = count > 0 ? upcomingTasks[0].id : null;
+        mqttClient.publish(UPCOMING_TASKS_SENSOR_STATE_TOPIC, String(count), {
+            retain: false,
+        });
         console.log(`Published upcoming tasks count: ${count}`);
 
         // --- Publish the detailed attributes as JSON ---
         mqttClient.publish(
-	        UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
-	        JSON.stringify({
+            UPCOMING_TASKS_SENSOR_ATTRIBUTES_TOPIC,
+            JSON.stringify({
                 count: upcomingTasks.length,
                 next_due_id: nextDueId,
-                tasks: upcomingTasks
+                tasks: upcomingTasks,
             }),
             { retain: false }
         );
@@ -363,10 +391,10 @@ function publishUpcomingTasksState() {
 }
 const debouncedPublishUpcomingTasksState = debounce(publishUpcomingTasksState, 5000);
 
-app.use(express.static('/app/frontend'));
+app.use(express.static("/app/frontend"));
 
 // GET all tasks
-app.get('/api/tasks', (req, res) => {
+app.get("/api/tasks", (req, res) => {
     const sql = `
       SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
              recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
@@ -376,26 +404,22 @@ app.get('/api/tasks', (req, res) => {
       LEFT JOIN recurring_rules ON tasks.id = recurring_rules.task_id
     `;
 
-    db.all(sql, [], (err, rows) => {
+    db.all(sql, [], async (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
         }
 
-        // Map rows to add recurring objects
-        const processedTasks = rows.map(row => {
-            return processTaskRow(row);
-        });
-
+        const processedTasks = await Promise.all(rows.map((row) => processTaskRowWithTags(row)));
         res.json(processedTasks);
     });
 });
 
 // GET a single task by ID
-app.get('/api/tasks/:id', (req, res) => {
-	const { id } = req.params;
+app.get("/api/tasks/:id", (req, res) => {
+    const { id } = req.params;
 
-	const sql = `
+    const sql = `
         SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
                 recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
                 recurring_rules.end_date AS recurring_end_date, recurring_rules.end_type AS recurring_end_type,
@@ -405,53 +429,65 @@ app.get('/api/tasks/:id', (req, res) => {
         WHERE tasks.id = ?
     `;
 
-	db.get(sql, [id], (err, row) => {
-		if (err) {
-			res.status(500).json({ error: err.message });
-			return;
-		}
-		if (!row) {
-			res.status(404).json({ message: 'Task not found' });
-			return;
+    db.get(sql, [id], async (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
         }
-        const processed = processTaskRow(row);
-		res.json(processed);
-	});
+        if (!row) {
+            res.status(404).json({ message: "Task not found" });
+            return;
+        }
+        const processed = await processTaskRowWithTags(row);
+        res.json(processed);
+    });
 });
 
 // GET history of a single task by ID
-app.get('/api/tasks/:id/history', (req, res) => {
+app.get("/api/tasks/:id/history", (req, res) => {
     const { id } = req.params;
 
-    db.all(`
+    db.all(
+        `
         SELECT id, field_changed, old_value, new_value, changed_at
         FROM task_history
         WHERE task_id = ?
         ORDER BY changed_at DESC
-    `, [id], (err, rows) => {
-        if (err) {
-            console.error(`Error fetching history for task ${id}:`, err.message);
-            return res.status(500).json({ error: 'Failed to retrieve task history' });
-        }
+    `,
+        [id],
+        (err, rows) => {
+            if (err) {
+                console.error(`Error fetching history for task ${id}:`, err.message);
+                return res.status(500).json({ error: "Failed to retrieve task history" });
+            }
 
-        const mappedHistory = rows.map(entry => ({
-            ...entry,
-            field_changed: reverseFieldMap[entry.field_changed] || entry.field_changed
-        }));
-        res.json(mappedHistory);
-    });
+            const mappedHistory = rows.map((entry) => ({
+                ...entry,
+                field_changed: reverseFieldMap[entry.field_changed] || entry.field_changed,
+            }));
+            res.json(mappedHistory);
+        }
+    );
 });
 
 // GET all categories
-app.get('/api/categories', (req, res) => {
-    db.all('SELECT * FROM categories', [], (err, rows) => {
+app.get("/api/categories", (req, res) => {
+    db.all("SELECT * FROM categories", [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+// GET all tags
+app.get("/api/tags", (req, res) => {
+    db.all("SELECT * FROM tags", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
     });
 });
 
 // POST a new task
-app.post('/api/tasks', (req, res) => {
+app.post("/api/tasks", (req, res) => {
     const dbFields = [];
     const placeholders = [];
     const values = [];
@@ -460,252 +496,316 @@ app.post('/api/tasks', (req, res) => {
         let value = req.body[inputField];
 
         if (value !== undefined) {
-            if (dbField === 'completed') {
+            if (dbField === "completed") {
                 value = value ? 1 : 0;
-            }  else if ((dbField === 'parent_task_id' || dbField === 'category_id') && value === '') {
+            } else if ((dbField === "parent_task_id" || dbField === "category_id") && value === "") {
                 value = null;
             }
 
             dbFields.push(dbField);
-            placeholders.push('?');
+            placeholders.push("?");
             values.push(value);
         }
     });
 
-    if (!dbFields.includes('title')) {
-        res.status(400).json({ error: 'Title is required' });
+    if (!dbFields.includes("title")) {
+        res.status(400).json({ error: "Title is required" });
         return;
     }
 
-    db.run(`
-        INSERT INTO tasks (${dbFields.join(', ')}) VALUES (${placeholders.join(', ')})
-        `, values, function (err) {
-        if (err) {
-            console.error('Error inserting task:', err.message);
-            return res.status(500).json({ error: err.message });
-        }
-
-        const taskId = this.lastID;
-        const recurring = req.body.recurring;
-
-        if (recurring) {
-            let parsed;
-            if (typeof recurring === 'string') {
-                try {
-                parsed = JSON.parse(recurring);
-                } catch(e) {
-                console.error('Invalid recurring JSON:', e);
-                }
-            } else if (typeof recurring === 'object') {
-                parsed = recurring;
-            }
-
-            if (parsed) {
-                const frequency = parsed.frequency || '';
-                const interval = parsed.interval || 1;
-                const by_day = parsed.by_day || null;
-                const by_month_day = parsed.by_month_day || null;
-                const start_date = parsed.start_date;
-                let end_date = null;
-                const end_type = parsed.end ? parsed.end.type : 'never'; // 'on', 'after', or 'never'
-                const end_after_occurrences = parsed.end?.type === 'after' ? parsed.end.after_occurrences : null;
-
-                if (parsed.end) {
-                    if (parsed.end.type === 'on') {
-                    end_date = parsed.end.date;  // date string expected here
-                    } else {
-                    end_date = null; // 'never' or 'after' — no date stored for now
-                    }
-                }
-
-                if (!frequency) {
-                    console.warn(`Task ${taskId}: Invalid recurring pattern: missing frequency`);
-                } else {
-                    const insertRecurring = `
-                    INSERT INTO recurring_rules (task_id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    `;
-                    db.run(insertRecurring, [taskId, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences], (recErr) => {
-                    if (recErr) {
-                        console.error('Error inserting recurring rule:', recErr.message);
-                    }
-                    });
-                }
-            }
-        }
-
-        // Fetch and return the newly created task
-        db.get(`
-            SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
-                recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
-                recurring_rules.end_date AS recurring_end_date, recurring_rules.end_type AS recurring_end_type,
-                recurring_rules.end_after_occurrences AS recurring_end_after_occurrences
-            FROM tasks
-            LEFT JOIN recurring_rules ON tasks.id = recurring_rules.task_id
-            WHERE tasks.id = ?
-            `, [taskId], (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
-
-            const processed = processTaskRow(row);
-            debouncedPublishUpcomingTasksState();
-            res.status(201).json(processed);
-        });
-    });
-});
-
-// POST an undo task
-app.post('/api/tasks/:id/undo', (req, res) => {
-    const { id } = req.params;
-
-    // Step 1: Get the most recent history entry
-    db.get(`
-        SELECT * FROM task_history
-        WHERE task_id = ?
-        ORDER BY changed_at DESC
-        LIMIT 1
-    `, [id], (err, historyEntry) => {
-        if (err) {
-            console.error('Error querying task history:', err.message);
-            return res.status(500).json({ error: 'Failed to query task history' });
-        }
-
-        if (!historyEntry) {
-            return res.status(404).json({ message: 'No history to undo' });
-        }
-
-        const field = historyEntry.field_changed;
-        const oldValue = historyEntry.old_value;
-
-        // Step 2: Revert the field on the task
-        const updateSQL = `UPDATE tasks SET ${field} = ? WHERE id = ?`;
-
-        db.run(updateSQL, [oldValue, id], function (updateErr) {
-            if (updateErr) {
-                console.error('Error reverting task field:', updateErr.message);
-                return res.status(500).json({ error: 'Failed to revert task change' });
-            }
-
-            // Step 3: Log the undo as a new history entry
-            db.run(`
-                INSERT INTO task_history (task_id, field_changed, old_value, new_value)
-                VALUES (?, ?, ?, ?)
-            `, [id, field, historyEntry.new_value, oldValue], function (logErr) {
-                if (logErr) {
-                    console.error('Error logging undo change:', logErr.message);
-                }
-
-                // Step 4: Return the updated task
-                db.get('SELECT * FROM tasks WHERE id = ?', [id], (getErr, row) => {
-                    if (getErr) {
-                        return res.status(500).json({ error: 'Task updated but retrieval failed' });
-                    }
-
-                    res.json({
-                        message: `Reverted field '${field}'`,
-                        task: processTaskRow(row),
-                        undoneField: field
-                    });
-                });
-            });
-        });
-    });
-});
-
-// POST a redo task
-app.post('/api/tasks/:id/redo', (req, res) => {
-    const { id } = req.params;
-
-    // Step 1: Get the most recent revert/undo (where we just swapped values)
-    db.get(`
-        SELECT * FROM task_history
-        WHERE task_id = ?
-        ORDER BY changed_at DESC
-        LIMIT 1
-    `, [id], (err, lastChange) => {
-        if (err) {
-            console.error('Error retrieving task history:', err.message);
-            return res.status(500).json({ error: 'Failed to fetch task history' });
-        }
-
-        if (!lastChange) {
-            return res.status(404).json({ message: 'No history to redo' });
-        }
-
-        const { field_changed, old_value, new_value } = lastChange;
-
-        // We assume redo means: apply the value we had *before* the undo
-        const redoSQL = `UPDATE tasks SET ${field_changed} = ? WHERE id = ?`;
-
-        db.run(redoSQL, [new_value, id], function (updateErr) {
-            if (updateErr) {
-                console.error('Error applying redo:', updateErr.message);
-                return res.status(500).json({ error: 'Failed to redo task change' });
-            }
-
-            // Log the redo (flipping values again)
-            db.run(`
-                INSERT INTO task_history (task_id, field_changed, old_value, new_value)
-                VALUES (?, ?, ?, ?)
-            `, [id, field_changed, old_value, new_value], function (logErr) {
-                if (logErr) {
-                    console.error('Failed to log redo:', logErr.message);
-                }
-
-                db.get('SELECT * FROM tasks WHERE id = ?', [id], (getErr, row) => {
-                    if (getErr) {
-                        return res.status(500).json({ error: 'Redo applied, but task retrieval failed' });
-                    }
-
-                    res.json({
-                        message: `Redid change to '${field_changed}'`,
-                        task: processTaskRow(row),
-                        redoneField: field_changed
-                    });
-                });
-            });
-        });
-    });
-});
-
-// POST create a new category
-app.post('/api/categories', (req, res) => {
-    const { name, parent_id = null } = req.body;
-    if (!name) return res.status(400).json({ error: 'Category name is required' });
-
     db.run(
-        `INSERT INTO categories (name, parent_id) VALUES (?, ?)`,
-        [name, parent_id],
+        `
+        INSERT INTO tasks (${dbFields.join(", ")}) VALUES (${placeholders.join(", ")})
+        `,
+        values,
         function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.status(201).json({ id: this.lastID, name, parent_id });
+            if (err) {
+                console.error("Error inserting task:", err.message);
+                return res.status(500).json({ error: err.message });
+            }
+
+            const taskId = this.lastID;
+            const recurring = req.body.recurring;
+
+            const tags = req.body.tags;
+            if (Array.isArray(tags) && tags.length > 0) {
+                const stmt = db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)");
+                tags.forEach((tagId) => {
+                    stmt.run(taskId, tagId);
+                });
+                stmt.finalize();
+            }
+
+            if (recurring) {
+                let parsed;
+                if (typeof recurring === "string") {
+                    try {
+                        parsed = JSON.parse(recurring);
+                    } catch (e) {
+                        console.error("Invalid recurring JSON:", e);
+                    }
+                } else if (typeof recurring === "object") {
+                    parsed = recurring;
+                }
+
+                if (parsed) {
+                    const frequency = parsed.frequency || "";
+                    const interval = parsed.interval || 1;
+                    const by_day = parsed.by_day || null;
+                    const by_month_day = parsed.by_month_day || null;
+                    const start_date = parsed.start_date;
+                    let end_date = null;
+                    const end_type = parsed.end ? parsed.end.type : "never"; // 'on', 'after', or 'never'
+                    const end_after_occurrences = parsed.end?.type === "after" ? parsed.end.after_occurrences : null;
+
+                    if (parsed.end) {
+                        if (parsed.end.type === "on") {
+                            end_date = parsed.end.date; // date string expected here
+                        } else {
+                            end_date = null; // 'never' or 'after' — no date stored for now
+                        }
+                    }
+
+                    if (!frequency) {
+                        console.warn(`Task ${taskId}: Invalid recurring pattern: missing frequency`);
+                    } else {
+                        const insertRecurring = `
+                            INSERT INTO recurring_rules (task_id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `;
+                        db.run(insertRecurring, [taskId, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences], (recErr) => {
+                            if (recErr) {
+                                console.error("Error inserting recurring rule:", recErr.message);
+                            }
+                        });
+                    }
+                }
+            }
+
+            // Fetch and return the newly created task
+            db.get(
+                `
+                SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
+                    recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
+                    recurring_rules.end_date AS recurring_end_date, recurring_rules.end_type AS recurring_end_type,
+                    recurring_rules.end_after_occurrences AS recurring_end_after_occurrences
+                FROM tasks
+                LEFT JOIN recurring_rules ON tasks.id = recurring_rules.task_id
+                WHERE tasks.id = ?
+                `,
+                [taskId],
+                async (err, row) => {
+                    if (err) return res.status(500).json({ error: err.message });
+
+                    const processed = await processTaskRowWithTags(row);
+                    debouncedPublishUpcomingTasksState();
+                    res.status(201).json(processed);
+                }
+            );
         }
     );
 });
 
+// POST an undo task
+app.post("/api/tasks/:id/undo", (req, res) => {
+    const { id } = req.params;
+
+    // Step 1: Get the most recent history entry
+    db.get(
+        `
+        SELECT * FROM task_history
+        WHERE task_id = ?
+        ORDER BY changed_at DESC
+        LIMIT 1
+    `,
+        [id],
+        (err, historyEntry) => {
+            if (err) {
+                console.error("Error querying task history:", err.message);
+                return res.status(500).json({ error: "Failed to query task history" });
+            }
+
+            if (!historyEntry) {
+                return res.status(404).json({ message: "No history to undo" });
+            }
+
+            const field = historyEntry.field_changed;
+            const oldValue = historyEntry.old_value;
+
+            // Step 2: Revert the field on the task
+            const updateSQL = `UPDATE tasks SET ${field} = ? WHERE id = ?`;
+
+            db.run(updateSQL, [oldValue, id], function (updateErr) {
+                if (updateErr) {
+                    console.error("Error reverting task field:", updateErr.message);
+                    return res.status(500).json({ error: "Failed to revert task change" });
+                }
+
+                // Step 3: Log the undo as a new history entry
+                db.run(
+                    `
+                INSERT INTO task_history (task_id, field_changed, old_value, new_value)
+                VALUES (?, ?, ?, ?)
+            `,
+                    [id, field, historyEntry.new_value, oldValue],
+                    function (logErr) {
+                        if (logErr) {
+                            console.error("Error logging undo change:", logErr.message);
+                        }
+
+                        // Step 4: Return the updated task
+                        db.get("SELECT * FROM tasks WHERE id = ?", [id], (getErr, row) => {
+                            if (getErr) {
+                                return res.status(500).json({
+                                    error: "Task updated but retrieval failed",
+                                });
+                            }
+
+                            res.json({
+                                message: `Reverted field '${field}'`,
+                                task: processTaskRow(row),
+                                undoneField: field,
+                            });
+                        });
+                    }
+                );
+            });
+        }
+    );
+});
+
+// POST a redo task
+app.post("/api/tasks/:id/redo", (req, res) => {
+    const { id } = req.params;
+
+    // Step 1: Get the most recent revert/undo (where we just swapped values)
+    db.get(
+        `
+        SELECT * FROM task_history
+        WHERE task_id = ?
+        ORDER BY changed_at DESC
+        LIMIT 1
+    `,
+        [id],
+        (err, lastChange) => {
+            if (err) {
+                console.error("Error retrieving task history:", err.message);
+                return res.status(500).json({ error: "Failed to fetch task history" });
+            }
+
+            if (!lastChange) {
+                return res.status(404).json({ message: "No history to redo" });
+            }
+
+            const { field_changed, old_value, new_value } = lastChange;
+
+            // We assume redo means: apply the value we had *before* the undo
+            const redoSQL = `UPDATE tasks SET ${field_changed} = ? WHERE id = ?`;
+
+            db.run(redoSQL, [new_value, id], function (updateErr) {
+                if (updateErr) {
+                    console.error("Error applying redo:", updateErr.message);
+                    return res.status(500).json({ error: "Failed to redo task change" });
+                }
+
+                // Log the redo (flipping values again)
+                db.run(
+                    `
+                INSERT INTO task_history (task_id, field_changed, old_value, new_value)
+                VALUES (?, ?, ?, ?)
+            `,
+                    [id, field_changed, old_value, new_value],
+                    function (logErr) {
+                        if (logErr) {
+                            console.error("Failed to log redo:", logErr.message);
+                        }
+
+                        db.get("SELECT * FROM tasks WHERE id = ?", [id], (getErr, row) => {
+                            if (getErr) {
+                                return res.status(500).json({
+                                    error: "Redo applied, but task retrieval failed",
+                                });
+                            }
+
+                            res.json({
+                                message: `Redid change to '${field_changed}'`,
+                                task: processTaskRow(row),
+                                redoneField: field_changed,
+                            });
+                        });
+                    }
+                );
+            });
+        }
+    );
+});
+
+// POST create a new category
+app.post("/api/categories", (req, res) => {
+    const { name, parent_id = null } = req.body;
+    if (!name) return res.status(400).json({ error: "Category name is required" });
+
+    db.run(`INSERT INTO categories (name, parent_id) VALUES (?, ?)`, [name, parent_id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ id: this.lastID, name, parent_id });
+    });
+});
+
+// POST create a new tag
+app.post("/api/tags", (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: "Tag name is required" });
+
+    db.run(`INSERT INTO tags (name) VALUES (?)`, [name], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ id: this.lastID, name });
+    });
+});
+
 // PUT/PATCH update an existing task
-app.put('/api/tasks/:id', (req, res) => {
+app.put("/api/tasks/:id", (req, res) => {
     const { id } = req.params;
     const updates = [];
     const values = [];
 
     Object.entries(fieldMap).forEach(([inputField, dbField]) => {
         const value = req.body[inputField];
-        if (value !== undefined && dbField !== 'recurring') {
+        if (value !== undefined && dbField !== "recurring") {
             updates.push(`${dbField} = ?`);
             values.push(value);
         }
     });
 
-    if (updates.length === 0 && !req.body.recurring) {
-        return res.status(400).json({ error: 'No valid fields provided' });
+    if (updates.length === 0 && !("tags" in req.body) && !("recurring" in req.body)) {
+        return res.status(400).json({ error: "No valid fields provided" });
     }
+
+    const updateTags = () => {
+        return new Promise((resolve, reject) => {
+            const tags = req.body.tags;
+            if (!Array.isArray(tags)) return resolve();
+
+            // Remove all existing tags for this task
+            db.run("DELETE FROM task_tags WHERE task_id = ?", [id], (delErr) => {
+                if (delErr) return reject(delErr);
+
+                // Insert new tags
+                if (tags.length === 0) return resolve();
+                const stmt = db.prepare("INSERT INTO task_tags (task_id, tag_id) VALUES (?, ?)");
+                tags.forEach((tagId) => {
+                    stmt.run(id, tagId);
+                });
+                stmt.finalize(resolve);
+            });
+        });
+    };
 
     // Step 1: Update task if needed
     const updateTask = () => {
         return new Promise((resolve, reject) => {
             if (updates.length === 0) return resolve(); // skip if no updates
 
-            const sql = `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`;
+            const sql = `UPDATE tasks SET ${updates.join(", ")} WHERE id = ?`;
             values.push(id);
             db.run(sql, values, function (err) {
                 if (err) return reject(err);
@@ -722,21 +822,21 @@ app.put('/api/tasks/:id', (req, res) => {
 
             let parsed;
             try {
-                parsed = typeof recurring === 'string' ? JSON.parse(recurring) : recurring;
+                parsed = typeof recurring === "string" ? JSON.parse(recurring) : recurring;
             } catch (e) {
-                return reject(new Error('Invalid recurring JSON'));
+                return reject(new Error("Invalid recurring JSON"));
             }
 
-            const frequency = parsed.frequency || '';
+            const frequency = parsed.frequency || "";
             const interval = parsed.interval || 1;
             const by_day = parsed.by_day || null;
             const by_month_day = parsed.by_month_day || null;
             const start_date = parsed.start_date;
             let end_date = null;
-            const end_type = parsed.end?.type || 'never';
+            const end_type = parsed.end?.type || "never";
             const after_occurrences = parsed.end?.after_occurrences || null;
 
-            if (end_type === 'on') {
+            if (end_type === "on") {
                 end_date = parsed.end.date || null;
             }
 
@@ -751,16 +851,16 @@ app.put('/api/tasks/:id', (req, res) => {
 
                 const query = row
                     ? {
-                        sql: `UPDATE recurring_rules
+                          sql: `UPDATE recurring_rules
                             SET frequency = ?, interval = ?, by_day = ?, by_month_day = ?, start_date = ?, end_date = ?, end_type = ?, end_after_occurrences = ?
                             WHERE task_id = ?`,
-                        values: [frequency, interval, by_day, by_month_day, start_date, end_date, end_type, after_occurrences, id]
-                    }
+                          values: [frequency, interval, by_day, by_month_day, start_date, end_date, end_type, after_occurrences, id],
+                      }
                     : {
-                        sql: `INSERT INTO recurring_rules (task_id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences)
+                          sql: `INSERT INTO recurring_rules (task_id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, end_after_occurrences)
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        values: [id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, after_occurrences]
-                    };
+                          values: [id, frequency, interval, by_day, by_month_day, start_date, end_date, end_type, after_occurrences],
+                      };
 
                 db.run(query.sql, query.values, (dbErr) => {
                     if (dbErr) return reject(dbErr);
@@ -772,7 +872,7 @@ app.put('/api/tasks/:id', (req, res) => {
 
     const deleteRecurring = () => {
         return new Promise((resolve, reject) => {
-            db.run('DELETE FROM recurring_rules WHERE task_id = ?', [id], (err) => {
+            db.run("DELETE FROM recurring_rules WHERE task_id = ?", [id], (err) => {
                 if (err) return reject(err);
                 resolve();
             });
@@ -782,8 +882,10 @@ app.put('/api/tasks/:id', (req, res) => {
     // Final: run everything
     updateTask()
         .then(updateRecurring)
+        .then(updateTags)
         .then(() => {
-            db.get(`
+            db.get(
+                `
                 SELECT tasks.*, recurring_rules.frequency, recurring_rules.interval, recurring_rules.by_day,
                     recurring_rules.by_month_day, recurring_rules.start_date AS recurring_start_date,
                     recurring_rules.end_date AS recurring_end_date, recurring_rules.end_type AS recurring_end_type,
@@ -791,124 +893,195 @@ app.put('/api/tasks/:id', (req, res) => {
                 FROM tasks
                 LEFT JOIN recurring_rules ON tasks.id = recurring_rules.task_id
                 WHERE tasks.id = ?
-            `, [id], (err, row) => {
-                if (err) return res.status(500).json({ error: err.message });
-                if (!row) return res.status(404).json({ message: 'Task not found' });
+            `,
+                [id],
+                async (err, row) => {
+                    if (err) return res.status(500).json({ error: err.message });
+                    if (!row) return res.status(404).json({ message: "Task not found" });
 
-                const processedTask = processTaskRow(row);
+                    const processedTask = processTaskRow(row);
 
-                // If recurring was explicitly set to 'none' or removed, delete the rule
-                if (req.body.recurring && (req.body.recurring.frequency === 'none' || req.body.recurring === null)) {
-                    deleteRecurring().then(() => {
-                        res.json({ message: 'Task updated successfully', task: processedTask });
-                    }).catch(err => res.status(500).json({ error: err.message }));
-                } else {
-                    res.json({ message: 'Task updated successfully', task: processedTask });
+                    // If recurring was explicitly set to 'none' or removed, delete the rule
+                    if (req.body.recurring && (req.body.recurring.frequency === "none" || req.body.recurring === null)) {
+                        deleteRecurring()
+                            .then(async () => {
+                                res.json({
+                                    message: "Task updated successfully",
+                                    task: await processTaskRowWithTags(row),
+                                });
+                            })
+                            .catch((err) => res.status(500).json({ error: err.message }));
+                    } else {
+                        res.json({
+                            message: "Task updated successfully",
+                            task: await processTaskRowWithTags(row),
+                        });
+                    }
                 }
-            });
+            );
         })
         .catch((err) => {
-            console.error('Error updating task:', err.message);
+            console.error("Error updating task:", err.message);
             res.status(500).json({ error: err.message });
         });
 });
 
 // PUT update a category
-app.put('/api/categories/:id', (req, res) => {
+app.put("/api/categories/:id", (req, res) => {
     const { id } = req.params;
     const { name, parent_id = null } = req.body;
 
-    db.run(
-        `UPDATE categories SET name = ?, parent_id = ? WHERE id = ?`,
-        [name, parent_id, id],
-        function (err) {
-            if (err) return res.status(500).json({ error: err.message });
-            res.json({ id, name, parent_id });
-        }
-    );
+    db.run(`UPDATE categories SET name = ?, parent_id = ? WHERE id = ?`, [name, parent_id, id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ id, name, parent_id });
+    });
+});
+
+// PUT update a tag
+app.put("/api/tags/:id", (req, res) => {
+    const { id } = req.params;
+    const { name } = req.body;
+
+    if (!name) return res.status(400).json({ error: "Tag name is required" });
+
+    db.run(`UPDATE tags SET name = ? WHERE id = ?`, [name, id], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0) return res.status(404).json({ message: "Tag not found" });
+        res.json({ id, name });
+    });
 });
 
 // DELETE a task
-app.delete('/api/tasks/:id', (req, res) => {
-	const { id } = req.params;
-
-	db.serialize(() => {
-		// Explicitly delete recurring rule (optional if using ON DELETE CASCADE)
-		db.run('DELETE FROM recurring_rules WHERE task_id = ?', [id], (recErr) => {
-			if (recErr) {
-				console.warn('Failed to delete recurring rule (possibly not found):', recErr.message);
-			}
-		});
-
-		// Delete the task itself
-		db.run('DELETE FROM tasks WHERE id = ?', [id], function(err) {
-			if (err) {
-				return res.status(500).json({ error: err.message });
-			}
-			if (this.changes === 0) {
-				return res.status(404).json({ message: 'Task not found' });
-			}
-
-			debouncedPublishUpcomingTasksState();
-			res.json({ message: 'Task deleted successfully', changes: this.changes });
-		});
-	});
-});
-
-// DELETE a category
-app.delete('/api/categories/:id', (req, res) => {
+app.delete("/api/tasks/:id", (req, res) => {
     const { id } = req.params;
 
-    // Step 1: Nullify category references in tasks
-    db.run(`
-        UPDATE tasks SET category_id = NULL WHERE category_id = ?
-        `, [id], function (err) {
-        if (err) {
-            console.error('Error clearing category from tasks:', err.message);
-            return res.status(500).json({ error: err.message });
-        }
-
-        // Step 2: Delete the category itself
-        db.run(`
-            DELETE FROM categories WHERE id = ?
-            `, [id], function (err2) {
-            if (err2) {
-                console.error('Error deleting category:', err2.message);
-                return res.status(500).json({ error: err2.message });
+    db.serialize(() => {
+        // Explicitly delete recurring rule (optional if using ON DELETE CASCADE)
+        db.run("DELETE FROM recurring_rules WHERE task_id = ?", [id], (recErr) => {
+            if (recErr) {
+                console.warn("Failed to delete recurring rule (possibly not found):", recErr.message);
             }
+        });
 
+        // Delete the task itself
+        db.run("DELETE FROM tasks WHERE id = ?", [id], function (err) {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
             if (this.changes === 0) {
-                return res.status(404).json({ message: 'Category not found' });
+                return res.status(404).json({ message: "Task not found" });
             }
 
-            res.json({ message: 'Category deleted successfully' });
+            debouncedPublishUpcomingTasksState();
+            res.json({
+                message: "Task deleted successfully",
+                changes: this.changes,
+            });
         });
     });
 });
 
+// DELETE a category
+app.delete("/api/categories/:id", (req, res) => {
+    const { id } = req.params;
+
+    // Step 1: Nullify category references in tasks
+    db.run(
+        `
+        UPDATE tasks SET category_id = NULL WHERE category_id = ?
+        `,
+        [id],
+        function (err) {
+            if (err) {
+                console.error("Error clearing category from tasks:", err.message);
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Step 2: Delete the category itself
+            db.run(
+                `
+            DELETE FROM categories WHERE id = ?
+            `,
+                [id],
+                function (err2) {
+                    if (err2) {
+                        console.error("Error deleting category:", err2.message);
+                        return res.status(500).json({ error: err2.message });
+                    }
+
+                    if (this.changes === 0) {
+                        return res.status(404).json({ message: "Category not found" });
+                    }
+
+                    res.json({ message: "Category deleted successfully" });
+                }
+            );
+        }
+    );
+});
+
+// DELETE a tag
+app.delete("/api/tags/:id", (req, res) => {
+    const { id } = req.params;
+
+    // Step 1: Remove all task-tag links
+    db.run(
+        `
+        DELETE FROM task_tags WHERE tag_id = ?
+        `,
+        [id],
+        function (err) {
+            if (err) {
+                console.error("Error removing tag from tasks:", err.message);
+                return res.status(500).json({ error: err.message });
+            }
+
+            // Step 2: Delete the tag itself
+            db.run(
+                `
+            DELETE FROM tags WHERE id = ?
+            `,
+                [id],
+                function (err2) {
+                    if (err2) {
+                        console.error("Error deleting tag:", err2.message);
+                        return res.status(500).json({ error: err2.message });
+                    }
+
+                    if (this.changes === 0) {
+                        return res.status(404).json({ message: "Tag not found" });
+                    }
+
+                    res.json({ message: "Tag deleted successfully" });
+                }
+            );
+        }
+    );
+});
+
 // Global error handlers
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+process.on("unhandledRejection", (reason, promise) => {
+    console.error("Unhandled Rejection at:", promise, "reason:", reason);
     process.exit(1);
 });
 
-process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err.message, err.stack);
+process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception:", err.message, err.stack);
     process.exit(1);
 });
 
 // Close the database connection when the Node.js process exits
-process.on('SIGINT', () => {
+process.on("SIGINT", () => {
     db.close((err) => {
         if (err) {
-            console.error('Error closing database:', err.message);
+            console.error("Error closing database:", err.message);
         } else {
-            console.log('Database connection closed.');
+            console.log("Database connection closed.");
         }
         // Disconnect MQTT client before exiting
         if (mqttClient && mqttClient.connected) {
             mqttClient.end(() => {
-                console.log('MQTT client disconnected.');
+                console.log("MQTT client disconnected.");
                 process.exit(0);
             });
         } else {
