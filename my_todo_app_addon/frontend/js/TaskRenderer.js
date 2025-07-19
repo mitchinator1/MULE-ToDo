@@ -183,6 +183,16 @@ export const TaskRenderer = {
         editBtn.addEventListener("click", () => ModalManager.showTaskForm(taskData.id));
         actionsFooter.appendChild(editBtn);
 
+        // Elaborate button
+        const elaborateBtn = document.createElement("button");
+        elaborateBtn.className = "btn";
+        elaborateBtn.title = "Elaborate Task with AI";
+        elaborateBtn.innerHTML = createSVG("elaborate", 20, 20, "elaborate-svg");
+        elaborateBtn.addEventListener("click", () => {
+            TaskManager.elaborateTaskWithAI(taskData.id);
+        });
+        actionsFooter.appendChild(elaborateBtn);
+
         taskItem.appendChild(actionsFooter);
 
         // Event listener for the new toggle

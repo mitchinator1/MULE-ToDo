@@ -246,7 +246,7 @@ function getTagsForTask(taskId) {
             [taskId],
             (err, rows) => {
                 if (err) return reject(err);
-                resolve(rows.map((row) => row.id)); // or row.name if you want names
+                resolve(rows.map((row) => row.id));
             }
         );
     });
@@ -760,6 +760,63 @@ app.post("/api/tags", (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.status(201).json({ id: this.lastID, name });
     });
+});
+
+// POST elaborate a task using Gemini API
+app.post("/api/tasks/:id/elaborate", async (req, res) => {
+    const { id } = req.params;
+    const { title, description } = req.body; // frontend should send { title }
+
+    if (!title) {
+        return res.status(400).json({ error: "Task title is required" });
+    }
+
+    if (!GEMINI_API_KEY) {
+        return res.status(500).json({ error: "Gemini API key is not configured" });
+    }
+
+    const prompt = `
+        Break down the following task into a list of specific, actionable subtasks.
+        Return the result as a JSON array of objects, where each object has a "title" and a "description".
+        Do not include any other text or formatting.
+
+        Task title: "${title}"
+        Task description: "${description || "No additional description provided."}"
+
+        produce JSON matching this specification:
+
+        Subtasks = { "title": string, "description": string }
+        Return: array<Subtasks>`;
+
+    const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+
+    const payload = {
+        contents: chatHistory,
+        generationConfig: {
+            responseMimeType: "application/json",
+        },
+    };
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${process.env.GEMINI_API_KEY}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json();
+
+        if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+            const jsonString = result.candidates[0].content.parts[0].text;
+            const suggestedSubtasks = JSON.parse(jsonString);
+            return res.json({ subtasks: suggestedSubtasks });
+        } else {
+            return res.status(500).json({ error: "Invalid response from Gemini" });
+        }
+    } catch (error) {
+        console.error("Gemini error:", error);
+        return res.status(500).json({ error: "Failed to elaborate task" });
+    }
 });
 
 // PUT/PATCH update an existing task

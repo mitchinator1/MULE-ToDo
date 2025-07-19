@@ -140,6 +140,14 @@ const APIManager = {
             method: "DELETE",
         });
     },
+
+    elaborateTask: async function (taskId, taskTitle) {
+        return this._fetch(`${API_BASE_URL}/tasks/${taskId}/elaborate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: taskTitle }),
+        });
+    },
 };
 
 export default APIManager;

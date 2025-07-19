@@ -26,6 +26,11 @@ export const SVG_PATHS = {
         viewBox: "0 0 24 24",
         path: '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>',
     },
+    // Elaborate (brain)
+    elaborate: {
+        viewBox: "0 0 24 24",
+        path: '<path d="M4 6h16"></path><path d="M4 13h4"></path><path d="M4 20h3"></path><path d="M13 12h5a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-1l-2 2v-2h-2a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z"></path>',
+    },
     // Details (chevron right)
     details: {
         viewBox: "0 0 24 24",
