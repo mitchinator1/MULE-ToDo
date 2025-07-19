@@ -562,4 +562,49 @@ export const TaskManager = {
         this.renderTasks();
         UIManager.updateTagSelection(tag);
     },
+
+    async elaborateTaskWithAI(taskId) {
+        const task = DataManager.getTaskById(taskId);
+        if (!task) {
+            UIManager.showErrorMessage("Task not found", "elaborating task");
+            return;
+        }
+
+        UIManager.showThrobber("Elaborating task with AI");
+
+        try {
+            const { subtasks } = await APIManager.elaborateTask(taskId, task.title, task.description);
+
+            if (!Array.isArray(subtasks)) {
+                throw new Error("Invalid subtasks format");
+            }
+
+            console.log("Subtasks from AI:", subtasks);
+
+            subtasks.forEach(async (subtask) => {
+                let result = await APIManager.addTask({
+                    title: subtask.title,
+                    description: subtask.description || "",
+                    dueDate: "",
+                    priority: "Low",
+                    categoryId: null,
+                    tags: [],
+                    status: "Not Started",
+                    parentTaskId: taskId,
+                });
+
+                if (result.id) {
+                    DataManager.addTask(result);
+                    UIManager.addTaskToUI(result);
+                } else {
+                    UIManager.showErrorMessage(`Add failed or no task ID returned`, `adding task`);
+                }
+            });
+            UIManager.showMessage(`Task elaborated with AI successfully`, "success");
+        } catch (error) {
+            UIManager.showErrorMessage(error.message, "elaborating task");
+        } finally {
+            UIManager.hideThrobber("Elaborating task with AI");
+        }
+    },
 };

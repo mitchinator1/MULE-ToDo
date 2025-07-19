@@ -18,6 +18,9 @@ mqtt_port=$(bashio::config 'mqtt_port')
 mqtt_username=$(bashio::config 'mqtt_username')
 mqtt_password=$(bashio::config 'mqtt_password')
 
+# Get Gemini API key from environment variables
+gemini_api_key=$(bashio::config 'gemini_api_key')
+
 # Export environment variables for the Node.js application.
 # Node.js will typically read these from process.env
 export PORT="${port_internal}"
@@ -28,6 +31,7 @@ export MQTT_BROKER="${mqtt_broker}"
 export MQTT_PORT="${mqtt_port}"
 export MQTT_USERNAME="${mqtt_username}"
 export MQTT_PASSWORD="${mqtt_password}"
+export GEMINI_API_KEY="${gemini_api_key}"
 
 mkdir -p "$(dirname "${DATABASE_PATH}")"
 

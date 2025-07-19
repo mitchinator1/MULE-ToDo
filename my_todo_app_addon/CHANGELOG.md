@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 
+## 0.9.88
+
+-   Added Elaborate feature with Gemini
+
 ## 0.9.87
 
 -   Added Tags
