@@ -95,7 +95,6 @@ export const DataManager = {
 
     getTagNameById: function (id) {
         const tag = this.state.tags.find((t) => t.id === id);
-        console.log("getTagNameById", id, tag);
         return tag ? tag.name : "Unknown";
     },
 

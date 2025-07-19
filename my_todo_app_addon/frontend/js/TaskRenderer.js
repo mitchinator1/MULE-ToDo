@@ -291,6 +291,9 @@ export const TaskRenderer = {
             categoryElement.textContent = category;
         }
 
+        // Update tags
+        this.updateTagsDisplay(taskId, updatedTask.tags || []);
+
         // Update priority
         this.updatePriorityDisplay(taskId, updatedTask.priority);
     },
@@ -389,6 +392,13 @@ export const TaskRenderer = {
         if (priorityElement) {
             priorityElement.textContent = priority;
             priorityElement.className = `priority priority-${priority}`;
+        }
+    },
+
+    updateTagsDisplay: function (taskId, tags) {
+        const tagsElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .meta-row .meta-value`);
+        if (tagsElement) {
+            tagsElement.textContent = tags.length ? tags.map((tag) => DataManager.getTagNameById(tag)).join(", ") : "None";
         }
     },
 };
