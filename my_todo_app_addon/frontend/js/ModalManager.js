@@ -81,6 +81,9 @@ export const ModalManager = {
         document.getElementById("showTagForm").innerHTML = createSVG("edit", 16, 16);
         document.getElementById("tagIconCollapsed").innerHTML = createSVG("tag", 22, 22, "icon-filled");
         document.getElementById("addTagBtn").addEventListener("click", this.handleAddTag.bind(this));
+
+        // Settings Modal controls
+        document.getElementById("settingsIconCollapsed").innerHTML = createSVG("settings", 22, 22, "icon-filled");
     },
 
     // --- Task Form Modal (Add/Edit Task) ---
@@ -213,7 +216,7 @@ export const ModalManager = {
             this.addTagToSelected(tag, DataManager.getTagNameById(tag));
         });
 
-        const availableTags = DataManager.state.tags.filter((tag) => !tags.includes(tag.id));
+        const availableTags = DataManager.state.tags.filter((tag) => !tags.includes(tag.id) && tag.name !== "All");
 
         this.elements.taskTagSelect.innerHTML = availableTags.map((tag) => `<option value="${tag.id}">${tag.name}</option>`).join("");
 

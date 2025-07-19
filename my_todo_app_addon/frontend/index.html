@@ -119,18 +119,24 @@
                         <input type="hidden" id="priorityHidden" name="priority" value="Medium">
                     </div>
                 </div>
-                <div class="form-group form-row">
-                    <select id="taskCategory" name="taskCategory">
-                        <!-- dynamically populated -->
-                    </select>
-                </div>
-                <div class="form-group form-row">
-                    <select id="availableTagsSelect" name="taskTags">
-                        <!-- dynamically populated -->
-                    </select>
-                    <div id="selectedTagsDisplay" class="selected-tags-display">
-                        <!-- Selected tags will be appended here -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="taskCategory">Category</label>
+                        <select id="taskCategory" name="taskCategory">
+                            <!-- dynamically populated -->
+                        </select>
                     </div>
+                    <div class="form-group">
+                        <label for="taskTags">Tags</label>
+                        <div class="form-group">
+                            <select id="availableTagsSelect" name="taskTags">
+                                <!-- dynamically populated -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div id="selectedTagsDisplay" class="selected-tags-display">
+                    <!-- Selected tags will be appended here -->
                 </div>
                 <div class="form-group recurring-controls">
                     <div class="form-row">

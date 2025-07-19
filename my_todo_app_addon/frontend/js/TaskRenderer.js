@@ -15,8 +15,6 @@ export const TaskRenderer = {
     createTaskElement: function (task) {
         const recurringData = typeof task.recurring === "object" ? task.recurring : typeof task.recurring === "string" ? JSON.parse(task.recurring || "{}") : {};
 
-        console.log("Creating task element for:", task.id, "with data:", task);
-
         const taskData = {
             id: task.id,
             title: task.title || "Untitled Task",
@@ -96,7 +94,7 @@ export const TaskRenderer = {
 
         // Priority
         const priorityDisplay = document.createElement("div");
-        priorityDisplay.className = `priority priority-${taskData.priority}`; // e.g., priority-High
+        priorityDisplay.className = `priority priority-${taskData.priority}`;
         priorityDisplay.textContent = taskData.priority;
         priorityDisplay.addEventListener("click", (e) => this.UIManager.toggleUniversalPriorityDropdown(e.currentTarget, taskData.id));
         summaryMeta.appendChild(priorityDisplay);
@@ -216,34 +214,14 @@ export const TaskRenderer = {
         const taskElement = document.querySelector(`.task-container[data-task-id="${taskId}"]`);
         if (!taskElement) return;
 
-        // Update title
-        const titleSpan = taskElement.querySelector(".task-title");
-        const titleInput = taskElement.querySelector(".title-edit");
-        if (titleSpan) {
-            titleSpan.textContent = updatedTask.title || "Untitled Task";
-            titleSpan.style.visibility = "visible";
-            if (titleInput) {
-                titleInput.value = updatedTask.title || "Untitled Task";
-                titleInput.style.display = "none";
-            }
-        }
-        // Update description
-        const descriptionDiv = taskElement.querySelector(".description");
-        const descriptionTextarea = taskElement.querySelector(".description-edit");
-        if (descriptionDiv) {
-            const description = updatedTask.description || "";
-            descriptionDiv.innerHTML = description || '<span class="placeholder">Add description...</span>';
-            descriptionDiv.style.visibility = "visible";
-            if (descriptionTextarea) {
-                descriptionTextarea.value = description;
-                descriptionTextarea.style.display = "none";
-            }
-        }
-        // Update status
-        const statusElement = taskElement.querySelector(".status");
-        if (statusElement) {
-            statusElement.textContent = updatedTask.status || "Not Started";
-        }
+        this.updateTitleDisplay(taskId, updatedTask.title || "Untitled Task");
+        this.updateDescriptionDisplay(taskId, updatedTask.description || "");
+        this.updateDueDateDisplay(taskId, updatedTask.dueDate);
+        this.updateRecurringDisplay(taskId, updatedTask);
+        this.updatePriorityDisplay(taskId, updatedTask.priority);
+        this.updateCategoryDisplay(taskId, updatedTask.categoryId);
+        this.updateTagsDisplay(taskId, updatedTask.tags || []);
+        this.updateStatusDisplay(taskId, updatedTask.status || "Not Started");
 
         // Update completed status
         const taskItemElement = taskElement.querySelector(".task-item");
@@ -254,48 +232,6 @@ export const TaskRenderer = {
         if (checkbox) {
             checkbox.checked = updatedTask.status === "Completed";
         }
-
-        // Update due date
-        this.updateDueDateDisplay(taskId, updatedTask.dueDate);
-
-        // Update recurring indicator
-        let recurringIndicator = taskElement.querySelector(".recurring-indicator");
-
-        if (updatedTask.recurring && typeof updatedTask.recurring === "object" && Object.keys(updatedTask.recurring).length > 0) {
-            // If indicator doesn't exist, create it
-            if (!recurringIndicator) {
-                recurringIndicator = document.createElement("span");
-                recurringIndicator.className = "recurring-indicator recurring-svg";
-                recurringIndicator.innerHTML = createSVG("recurring", 18, 18, "recurring-svg");
-                recurringIndicator.addEventListener("click", (e) => ModalManager.showRecurringEditForm(taskId, e));
-
-                const summaryMeta = taskElement.querySelector(".task-summary-meta");
-                if (summaryMeta) {
-                    const dueContainer = summaryMeta.querySelector(".due-date-container");
-                    summaryMeta.insertBefore(recurringIndicator, dueContainer);
-                }
-            }
-
-            // Update recurring indicator data
-            recurringIndicator.dataset.recurring = JSON.stringify(updatedTask.recurring);
-            recurringIndicator.title = this.UIManager.getRecurringDescription(updatedTask.recurring);
-        } else if (recurringIndicator) {
-            // Remove if no longer recurring
-            recurringIndicator.remove();
-        }
-
-        // Update category
-        const categoryElement = taskElement.querySelector(".meta-row .meta-value");
-        if (categoryElement) {
-            const category = DataManager.state.categories.find((c) => c.id === updatedTask.categoryId)?.name || "None";
-            categoryElement.textContent = category;
-        }
-
-        // Update tags
-        this.updateTagsDisplay(taskId, updatedTask.tags || []);
-
-        // Update priority
-        this.updatePriorityDisplay(taskId, updatedTask.priority);
     },
 
     editTaskTitle: function (event, taskId) {
@@ -378,6 +314,31 @@ export const TaskRenderer = {
         TaskManager.updateTaskField(taskId, "dueDate", formattedDate);
     },
 
+    updateTitleDisplay: function (taskId, newTitle) {
+        const titleElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .task-title`);
+        if (!titleElement) return;
+
+        titleElement.textContent = newTitle;
+        titleElement.style.visibility = "visible";
+        const titleEditElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .title-edit`);
+        if (titleEditElement) {
+            titleEditElement.value = newTitle || "Untitled Task";
+            titleEditElement.style.display = "none";
+        }
+    },
+
+    updateDescriptionDisplay: function (taskId, newDescription) {
+        const descriptionElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .description`);
+        if (!descriptionElement) return;
+        descriptionElement.innerHTML = newDescription || '<span class="placeholder">Add description...</span>';
+        descriptionElement.style.visibility = "visible";
+        const descriptionEditElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .description-edit`);
+        if (descriptionEditElement) {
+            descriptionEditElement.value = newDescription || "";
+            descriptionEditElement.style.display = "none";
+        }
+    },
+
     updateDueDateDisplay: function (taskId, newDate) {
         const display = document.querySelector(`.task-container[data-task-id="${taskId}"] .due-date-display`);
         if (!display) return;
@@ -395,10 +356,38 @@ export const TaskRenderer = {
         }
     },
 
+    updateRecurringDisplay: function (taskId, task) {
+        const recurringIndicator = document.querySelector(`.task-container[data-task-id="${taskId}"] .recurring-indicator`);
+        if (!recurringIndicator) return;
+
+        if (task.recurring && typeof task.recurring === "object" && Object.keys(task.recurring).length > 0) {
+            recurringIndicator.style.display = "inline-block";
+            recurringIndicator.title = this.UIManager.getRecurringDescription(task.recurring);
+            recurringIndicator.dataset.recurring = JSON.stringify(task.recurring);
+        } else {
+            recurringIndicator.style.display = "none";
+        }
+    },
+
+    updateCategoryDisplay: function (taskId, categoryId) {
+        const categoryElement = document.querySelectorAll(`.task-container[data-task-id="${taskId}"] .meta-row .meta-value`);
+        if (categoryElement[0]) {
+            const categoryName = DataManager.state.categories.find((c) => c.id === categoryId)?.name || "None";
+            categoryElement[0].textContent = categoryName;
+        }
+    },
+
     updateTagsDisplay: function (taskId, tags) {
-        const tagsElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .meta-row .meta-value`);
-        if (tagsElement) {
-            tagsElement.textContent = tags.length ? tags.map((tag) => DataManager.getTagNameById(tag)).join(", ") : "None";
+        const tagsElement = document.querySelectorAll(`.task-container[data-task-id="${taskId}"] .meta-row .meta-value`);
+        if (tagsElement[1]) {
+            tagsElement[1].textContent = tags.length ? tags.map((tag) => DataManager.getTagNameById(tag)).join(", ") : "None";
+        }
+    },
+
+    updateStatusDisplay: function (taskId, status) {
+        const statusElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .status`);
+        if (statusElement) {
+            statusElement.textContent = status || "Not Started";
         }
     },
 };
