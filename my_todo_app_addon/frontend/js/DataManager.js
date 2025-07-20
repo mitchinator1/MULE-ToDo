@@ -70,32 +70,10 @@ export const DataManager = {
         this.saveState();
     },
 
+    // --- Handle Tasks ---
     addTask: function (task) {
         this.state.tasks.push(task);
         this.saveState();
-    },
-
-    removeTask: function (taskId) {
-        const index = this.state.tasks.findIndex((t) => t.id === taskId);
-        if (index !== -1) {
-            this.state.tasks.splice(index, 1);
-        }
-    },
-
-    getTaskById(taskId) {
-        // Ensure we are comparing numbers to numbers, as taskId from DOM can be a string
-        const id = typeof taskId === "string" ? parseInt(taskId, 10) : taskId;
-        return this.state.tasks.find((task) => task.id === id);
-    },
-
-    getCategoryNameById: function (id) {
-        const category = this.state.categories.find((c) => c.id === id);
-        return category ? category.name : "Unknown";
-    },
-
-    getTagNameById: function (id) {
-        const tag = this.state.tags.find((t) => t.id === id);
-        return tag ? tag.name : "Unknown";
     },
 
     updateTask: function (task) {
@@ -116,6 +94,84 @@ export const DataManager = {
         }
     },
 
+    getTasks: function () {
+        // Ensure we are returning an array
+        return Array.isArray(this.state.tasks) ? this.state.tasks : [];
+    },
+
+    getTaskById(taskId) {
+        // Ensure we are comparing numbers to numbers, as taskId from DOM can be a string
+        const id = typeof taskId === "string" ? parseInt(taskId, 10) : taskId;
+        return this.state.tasks.find((task) => task.id === id);
+    },
+
+    // --- Handle Categories ---
+    addCategory: function (category) {
+        this.state.categories.push(category);
+        this.saveState();
+    },
+
+    updateCategory: function (category) {
+        const index = this.state.categories.findIndex((c) => c.id === category.id);
+        if (index !== -1) {
+            this.state.categories[index] = category;
+            this.saveState();
+        }
+    },
+
+    deleteCategory: function (categoryId) {
+        this.state.categories = this.state.categories.filter((c) => c.id !== categoryId);
+        this.state.tasks.forEach((task) => {
+            if (task.categoryId === categoryId) {
+                task.categoryId = null; // Reset category for tasks that had this category
+            }
+        });
+        this.saveState();
+    },
+
+    getCategories: function () {
+        return this.state.categories;
+    },
+
+    getCategoryNameById: function (id) {
+        const category = this.state.categories.find((c) => c.id === id);
+        return category ? category.name : "Unknown";
+    },
+
+    // --- Handle Tags ---
+    addTag: function (tag) {
+        this.state.tags.push(tag);
+        this.saveState();
+    },
+
+    updateTag: function (tag) {
+        const index = this.state.tags.findIndex((t) => t.id === tag.id);
+        if (index !== -1) {
+            this.state.tags[index] = tag;
+            this.saveState();
+        }
+    },
+
+    deleteTag: function (tagId) {
+        this.state.tags = this.state.tags.filter((tag) => tag.id !== tagId);
+        this.state.tasks.forEach((task) => {
+            if (Array.isArray(task.tags)) {
+                task.tags = task.tags.filter((tagId) => tagId !== tagId && tagId !== String(tagId));
+            }
+        });
+        this.saveState();
+    },
+
+    getTags: function () {
+        return this.state.tags;
+    },
+
+    getTagNameById: function (id) {
+        const tag = this.state.tags.find((t) => t.id === id);
+        return tag ? tag.name : "Unknown";
+    },
+
+    // --- Task Filtering and Sorting ---
     getFilteredAndSortedTasks: function () {
         const tasks = Array.isArray(this.state.tasks) ? this.state.tasks : [];
         let filteredTasks = this.filterTasks(tasks);
@@ -220,8 +276,16 @@ export const DataManager = {
         this.saveState();
     },
 
+    getCurrentCategory: function () {
+        return this.state.currentCategory;
+    },
+
     setCurrentTag: function (tag) {
         this.state.currentTag = tag;
         this.saveState();
+    },
+
+    getCurrentTag: function () {
+        return this.state.currentTag;
     },
 };

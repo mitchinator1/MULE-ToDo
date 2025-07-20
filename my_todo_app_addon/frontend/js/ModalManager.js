@@ -97,9 +97,13 @@ export const ModalManager = {
         this.hideTaskForm();
 
         // Populate category dropdown with current categories from DataManager
-        this.elements.taskCategorySelect.innerHTML = DataManager.state.categories.map((cat) => `<option value="${cat.id ?? ""}">${cat.name}</option>`).join("");
+        this.elements.taskCategorySelect.innerHTML = DataManager.getCategories()
+            .map((cat) => `<option value="${cat.id ?? ""}">${cat.name}</option>`)
+            .join("");
 
-        this.elements.taskTagSelect.innerHTML = DataManager.state.tags.map((tag) => `<option value="${tag.id ?? ""}">${tag.name}</option>`).join("");
+        this.elements.taskTagSelect.innerHTML = DataManager.getTags()
+            .map((tag) => `<option value="${tag.id ?? ""}">${tag.name}</option>`)
+            .join("");
 
         if (taskIdToEdit) {
             // --- EDIT MODE ---
@@ -216,7 +220,7 @@ export const ModalManager = {
             this.addTagToSelected(tag, DataManager.getTagNameById(tag));
         });
 
-        const availableTags = DataManager.state.tags.filter((tag) => !tags.includes(tag.id) && tag.name !== "All");
+        const availableTags = DataManager.getTags().filter((tag) => !tags.includes(tag.id) && tag.name !== "All");
 
         this.elements.taskTagSelect.innerHTML = availableTags.map((tag) => `<option value="${tag.id}">${tag.name}</option>`).join("");
 
@@ -640,7 +644,7 @@ export const ModalManager = {
 
     renderCategoryList: async function () {
         const list = this.elements.categoryModalList;
-        const categories = DataManager.state.categories.filter((c) => c.id !== null); // Exclude "All" category
+        const categories = DataManager.getCategories().filter((c) => c.id !== null); // Exclude "All" category
 
         list.innerHTML = categories
             .map(
@@ -664,11 +668,11 @@ export const ModalManager = {
 
                 try {
                     UIManager.showThrobber("Updating category");
-                    const updated = await APIManager.updateCategory(id, { name });
-                    const category = DataManager.state.categories.find((c) => c.id === id);
-                    if (category) category.name = updated.name; // Update DataManager state
+                    const updatedCategory = await APIManager.updateCategory(id, { name });
+                    DataManager.updateCategory(updatedCategory);
                     UIManager.refreshCategoryDropdown(); // Refresh the category dropdown in the task form
-                    UIManager.renderCategories(DataManager.state.categories); // Re-render sidebar categories
+                    UIManager.renderCategories(); // Re-render sidebar categories
+                    UIManager.renderTaskList(); // Re-render tasks
                 } catch (err) {
                     console.error("Failed to update category", err);
                     UIManager.showErrorMessage(err, "updating category");
@@ -687,10 +691,11 @@ export const ModalManager = {
                 try {
                     UIManager.showThrobber("Deleting category");
                     await APIManager.deleteCategory(id);
-                    DataManager.state.categories = DataManager.state.categories.filter((c) => c.id !== id); // Update DataManager state
+                    DataManager.deleteCategory(id);
                     UIManager.refreshCategoryDropdown(); // Refresh the category dropdown in the task form
                     this.renderCategoryList(); // Re-render the category list in the modal
-                    UIManager.renderCategories(DataManager.state.categories); // Re-render sidebar categories
+                    UIManager.renderCategories(); // Re-render sidebar categories
+                    UIManager.renderTaskList(); // Re-render tasks
                 } catch (err) {
                     console.error("Failed to delete category", err);
                     UIManager.showErrorMessage(err, "deleting category");
@@ -710,10 +715,10 @@ export const ModalManager = {
         try {
             UIManager.showThrobber("Adding category");
             const category = await APIManager.addCategory({ name });
-            DataManager.state.categories.push(category); // Add to DataManager state
+            DataManager.addCategory(category); // Add to DataManager state
             UIManager.refreshCategoryDropdown(); // Refresh the category dropdown in the task form
             this.renderCategoryList(); // Re-render the category list in the modal
-            UIManager.renderCategories(DataManager.state.categories); // Re-render sidebar categories
+            UIManager.renderCategories(); // Re-render sidebar categories
             this.elements.newCategoryNameInput.value = ""; // Clear input field
         } catch (err) {
             console.error("Failed to add category", err);
@@ -736,7 +741,7 @@ export const ModalManager = {
 
     renderTagList: async function () {
         const list = this.elements.tagModalList;
-        const tags = DataManager.state.tags.filter((c) => c.id !== null); // Exclude "All" tag
+        const tags = DataManager.getTags().filter((c) => c.id !== null); // Exclude "All" tag
 
         list.innerHTML = tags
             .map(
@@ -760,11 +765,11 @@ export const ModalManager = {
 
                 try {
                     UIManager.showThrobber("Updating tag");
-                    const updated = await APIManager.updateTag(id, { name });
-                    const tag = DataManager.state.tags.find((t) => t.id === id);
-                    if (tag) tag.name = updated.name; // Update DataManager state
+                    const updatedTag = await APIManager.updateTag(id, { name });
+                    DataManager.updateTag(updatedTag);
                     UIManager.refreshTagDropdown(); // Refresh the tag dropdown in the task form
-                    UIManager.renderTags(DataManager.state.tags); // Re-render sidebar categories
+                    UIManager.renderTags(); // Re-render sidebar categories
+                    UIManager.renderTaskList(); // Re-render tasks
                 } catch (err) {
                     console.error("Failed to update tag", err);
                     UIManager.showErrorMessage(err, "updating tag");
@@ -783,10 +788,11 @@ export const ModalManager = {
                 try {
                     UIManager.showThrobber("Deleting tag");
                     await APIManager.deleteTag(id);
-                    DataManager.state.tags = DataManager.state.tags.filter((t) => t.id !== id); // Update DataManager state
+                    DataManager.deleteTag(id); // Update DataManager state
                     UIManager.refreshTagDropdown(); // Refresh the tag dropdown in the task form
                     this.renderTagList(); // Re-render the tag list in the modal
-                    UIManager.renderTags(DataManager.state.tags); // Re-render sidebar tags
+                    UIManager.renderTags(); // Re-render sidebar tags
+                    UIManager.renderTaskList(); // Re-render tasks
                 } catch (err) {
                     console.error("Failed to delete tag", err);
                     UIManager.showErrorMessage(err, "deleting tag");
@@ -806,10 +812,10 @@ export const ModalManager = {
         try {
             UIManager.showThrobber("Adding tag");
             const tag = await APIManager.addTag({ name });
-            DataManager.state.tags.push(tag); // Add to DataManager state
+            DataManager.addTag(tag);
             UIManager.refreshTagDropdown(); // Refresh the tag dropdown in the task form
             this.renderTagList(); // Re-render the tag list in the modal
-            UIManager.renderTags(DataManager.state.tags); // Re-render sidebar tags
+            UIManager.renderTags(); // Re-render sidebar tags
             this.elements.newTagNameInput.value = ""; // Clear input field
         } catch (err) {
             console.error("Failed to add tag", err);

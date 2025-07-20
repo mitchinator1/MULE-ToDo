@@ -131,7 +131,9 @@ export const UIManager = {
         const select = document.getElementById("taskCategory"); // This is the select in the task form modal
         if (!select) return;
 
-        select.innerHTML = DataManager.state.categories.map((c) => `<option value="${c.id ?? ""}">${c.name}</option>`).join("");
+        select.innerHTML = DataManager.getCategories()
+            .map((c) => `<option value="${c.id ?? ""}">${c.name}</option>`)
+            .join("");
     },
 
     hideCategoryForm: function () {
@@ -147,16 +149,18 @@ export const UIManager = {
         const select = document.getElementById("taskTags"); // This is the select in the task form modal
         if (!select) return;
 
-        select.innerHTML = DataManager.state.tags.map((t) => `<option value="${t.id ?? ""}">${t.name}</option>`).join("");
+        select.innerHTML = DataManager.getTags()
+            .map((t) => `<option value="${t.id ?? ""}">${t.name}</option>`)
+            .join("");
     },
 
     hideTagForm: function () {
         document.getElementById("tagModal").style.display = "none";
     },
 
-    createTaskElement: function (task) {
-        return TaskRenderer.createTaskElement(task);
-    },
+    // createTaskElement: function (task) {
+    //     return TaskRenderer.createTaskElement(task);
+    // },
 
     toggleSubtasks: function (taskId, event) {
         const subtasksContainer = document.getElementById(`subtasks-${taskId}`);
@@ -209,7 +213,13 @@ export const UIManager = {
         }
     },
 
-    renderCategories: function (categories) {
+    renderCategories: function () {
+        const categories = DataManager.getCategories();
+        if (!categories) {
+            console.error("Categories not found");
+            return;
+        }
+
         const categoryList = document.getElementById("categoryList");
         if (!categoryList) {
             console.error("Category list element not found");
@@ -221,7 +231,7 @@ export const UIManager = {
             categoryItem.className = "category-item";
             categoryItem.innerHTML = `${createSVG("category", 16, 16, "icon-filled")}<span class="category-text">${category.name}</span>`;
             categoryItem.onclick = () => TaskManager.selectCategory(category);
-            if (category.name === DataManager.state.currentCategory.name) {
+            if (category.name === DataManager.getCurrentCategory().name) {
                 categoryItem.classList.add("active");
             }
             categoryList.appendChild(categoryItem);
@@ -236,7 +246,13 @@ export const UIManager = {
         });
     },
 
-    renderTags: function (tags) {
+    renderTags: function () {
+        const tags = DataManager.getTags();
+        if (!tags) {
+            console.error("Tags not found");
+            return;
+        }
+
         const tagList = document.getElementById("tagList");
         if (!tagList) {
             console.error("Tag list element not found");
@@ -248,7 +264,7 @@ export const UIManager = {
             tagItem.className = "tag-item";
             tagItem.innerHTML = `${createSVG("tag", 16, 16, "icon-filled")}<span class="tag-text">${tag.name}</span>`;
             tagItem.onclick = () => TaskManager.selectTag(tag);
-            if (tag.name === DataManager.state.currentTag.name) {
+            if (tag.name === DataManager.getCurrentTag().name) {
                 tagItem.classList.add("active");
             }
             tagList.appendChild(tagItem);
@@ -277,7 +293,13 @@ export const UIManager = {
         };
     },
 
-    renderTaskList: function (tasks) {
+    renderTaskList: function () {
+        const tasks = DataManager.getFilteredAndSortedTasks();
+        if (!tasks) {
+            console.error("Tasks not found");
+            return;
+        }
+
         if (!this.elements.taskList) {
             console.error("Task list element not found");
             return;

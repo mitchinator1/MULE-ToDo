@@ -1,5 +1,5 @@
 name: MULE To-Do
-version: 0.9.88
+version: 0.9.89
 slug: mule_todo
 description: A simple to-do list application for Home Assistant
 url: "https://github.com/mitchinator1/MULE-ToDo/tree/main/my_todo_app_addon"

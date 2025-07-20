@@ -33,10 +33,10 @@ export const TaskManager = {
             DataManager.init();
             await DataManager.loadCategories();
             UIManager.refreshCategoryDropdown?.();
-            UIManager.renderCategories(DataManager.state.categories);
+            UIManager.renderCategories();
             await DataManager.loadTags();
             UIManager.refreshTagDropdown?.();
-            UIManager.renderTags(DataManager.state.tags);
+            UIManager.renderTags();
             this.setupEventListeners();
             UIManager.setupRecurringControls();
             ModalManager.setupRecurringEditControls({
@@ -46,7 +46,7 @@ export const TaskManager = {
             UIManager.setupSidebar();
             FilterManager.setupFilters();
             // Only load tasks from server if we don't have any saved
-            if (DataManager.state.tasks.length === 0) {
+            if (DataManager.getTasks().length === 0) {
                 await this.loadTasks();
             } else {
                 // Otherwise, just render the saved tasks
@@ -95,8 +95,7 @@ export const TaskManager = {
     },
 
     renderTasks() {
-        const filteredTasks = DataManager.getFilteredAndSortedTasks();
-        UIManager.renderTaskList(filteredTasks);
+        UIManager.renderTaskList();
     },
 
     async handleFormSubmit(event) {

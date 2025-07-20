@@ -13,9 +13,31 @@ export const TaskRenderer = {
     },
 
     createTaskElement: function (task) {
+        const taskData = this.buildTaskData(task);
+
+        const taskItem = document.createElement("div");
+        taskItem.className = "task-item";
+        taskItem.dataset.taskId = taskData.id;
+
+        if (taskData.status === "Completed") taskItem.classList.add("completed");
+
+        const summary = this.createSummarySection(taskData);
+        const details = this.createDetailsSection(taskData);
+        const footer = this.createActionsFooter(taskData);
+
+        taskItem.appendChild(summary);
+        taskItem.appendChild(details);
+        taskItem.appendChild(footer);
+
+        this.attachToggleBehavior(details, footer);
+
+        return taskItem;
+    },
+
+    buildTaskData: function (task) {
         const recurringData = typeof task.recurring === "object" ? task.recurring : typeof task.recurring === "string" ? JSON.parse(task.recurring || "{}") : {};
 
-        const taskData = {
+        return {
             id: task.id,
             title: task.title || "Untitled Task",
             description: task.description || "",
@@ -23,18 +45,13 @@ export const TaskRenderer = {
             status: task.status || "Not Started",
             priority: task.priority || "Medium",
             categoryId: task.categoryId || null,
+            tags: task.tags || [],
+            hasSubtasks: task.hasSubtasks || false,
             recurring: recurringData,
         };
+    },
 
-        const taskItem = document.createElement("div");
-        taskItem.className = "task-item";
-        taskItem.dataset.taskId = taskData.id;
-        // Apply 'completed' class if task is completed
-        if (taskData.status === "Completed") {
-            taskItem.classList.add("completed");
-        }
-
-        // --- 1. Task Summary (Always Visible) ---
+    createSummarySection: function (taskData) {
         const summary = document.createElement("div");
         summary.className = "task-summary";
 
@@ -44,6 +61,7 @@ export const TaskRenderer = {
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.className = "task-checkbox";
+        checkbox.title = "Mark as Completed";
         checkbox.checked = taskData.status === "Completed";
         checkbox.addEventListener("change", (e) => {
             TaskManager.updateTaskStatus(e, taskData.id, e.target.checked ? "Completed" : "Not Started");
@@ -56,7 +74,7 @@ export const TaskRenderer = {
         const titleSpan = document.createElement("span");
         titleSpan.className = "task-title";
         titleSpan.textContent = taskData.title;
-        titleSpan.addEventListener("click", (e) => this.editTaskTitle(e, taskData.id));
+        titleSpan.addEventListener("click", (e) => this.editTaskTitle(e));
         titleContainer.appendChild(titleSpan);
         const titleInput = document.createElement("input");
         titleInput.className = "title-edit";
@@ -96,13 +114,15 @@ export const TaskRenderer = {
         const priorityDisplay = document.createElement("div");
         priorityDisplay.className = `priority priority-${taskData.priority}`;
         priorityDisplay.textContent = taskData.priority;
+        priorityDisplay.title = "Priority";
         priorityDisplay.addEventListener("click", (e) => this.UIManager.toggleUniversalPriorityDropdown(e.currentTarget, taskData.id));
         summaryMeta.appendChild(priorityDisplay);
 
         summary.appendChild(summaryMeta);
-        taskItem.appendChild(summary);
+        return summary;
+    },
 
-        // --- 2. Task Details (Collapsible) ---
+    createDetailsSection: function (taskData) {
         const detailsCollapsible = document.createElement("div");
         detailsCollapsible.className = "task-details-collapsible";
 
@@ -112,7 +132,7 @@ export const TaskRenderer = {
         const desc = document.createElement("div");
         desc.className = "description";
         desc.innerHTML = taskData.description || '<span class="placeholder">Add description...</span>';
-        desc.addEventListener("click", (e) => this.editTaskDescription(e, taskData.id));
+        desc.addEventListener("click", (e) => this.editTaskDescription(e));
         descContainer.appendChild(desc);
         const descEdit = document.createElement("textarea");
         descEdit.className = "description-edit";
@@ -125,26 +145,31 @@ export const TaskRenderer = {
         descContainer.appendChild(descEdit);
         detailsCollapsible.appendChild(descContainer);
 
-        // Extended Meta Section
+        // Meta Section (Category, Tags, Status)
         const extendedMeta = document.createElement("div");
         extendedMeta.className = "task-meta-extended";
         extendedMeta.innerHTML = `
-			<div class="meta-row"><span class="meta-label">Category:</span> <span class="meta-value">${DataManager.state.categories.find((c) => c.id === taskData.categoryId)?.name || "None"}</span></div>
-			<div class="meta-row"><span class="meta-label">Tags:</span> <span class="meta-value">${task.tags?.length ? task.tags.map((tag) => DataManager.getTagNameById(tag)).join(", ") : "None"}</span></div>
+			<div class="meta-row"><span class="meta-label">Category:</span> <span class="meta-value category-container">${DataManager.getCategoryNameById(taskData.categoryId) || "None"}</span></div>
+			<div class="meta-row"><span class="meta-label">Tags:</span>
+                <span class="meta-value tag-pill-container">
+                    ${taskData.tags?.length ? taskData.tags.map((tag) => `<span class="tag-pill">${DataManager.getTagNameById(tag)}</span>`).join("") : "None"}
+                </span>
+            </div>
 			<div class="meta-row"><span class="meta-label">Status:</span> <span class="meta-value status">${taskData.status}</span></div>
 		`;
         detailsCollapsible.appendChild(extendedMeta);
 
         // Subtask Expander
         const expand = document.createElement("div");
-        expand.className = `task-expand-indicator ${task.hasSubtasks ? "" : "hidden"}`;
+        expand.className = `task-expand-indicator ${taskData.hasSubtasks ? "" : "hidden"}`;
         expand.innerHTML = "<span>Subtasks</span>";
         expand.addEventListener("click", (e) => this.UIManager.toggleSubtasks(taskData.id, e));
         detailsCollapsible.appendChild(expand);
 
-        taskItem.appendChild(detailsCollapsible);
+        return detailsCollapsible;
+    },
 
-        // --- 3. Task Actions Footer ---
+    createActionsFooter: function (taskData) {
         const actionsFooter = document.createElement("div");
         actionsFooter.className = "task-actions-footer";
 
@@ -193,31 +218,33 @@ export const TaskRenderer = {
         });
         actionsFooter.appendChild(elaborateBtn);
 
-        taskItem.appendChild(actionsFooter);
+        return actionsFooter;
+    },
 
-        // Event listener for the new toggle
-        detailsToggleBtn.addEventListener("click", (e) => {
-            const isCollapsing = detailsCollapsible.classList.contains("expanded");
-            const detailsText = detailsToggleBtn.querySelector("span");
+    attachToggleBehavior: function (details, footer) {
+        const toggleBtn = footer.querySelector(".details-toggle-btn");
+        if (!toggleBtn) return;
+
+        toggleBtn.addEventListener("click", (e) => {
+            const isCollapsing = details.classList.contains("expanded");
+            const detailsText = toggleBtn.querySelector("span");
 
             if (isCollapsing) {
-                detailsCollapsible.style.maxHeight = detailsCollapsible.scrollHeight + "px";
-                detailsCollapsible.offsetHeight;
+                details.style.maxHeight = details.scrollHeight + "px";
+                details.offsetHeight;
 
-                detailsCollapsible.classList.remove("expanded");
-                detailsToggleBtn.classList.remove("expanded");
+                details.classList.remove("expanded");
+                toggleBtn.classList.remove("expanded");
                 if (detailsText) detailsText.textContent = "Details";
-                detailsCollapsible.style.maxHeight = "0px";
+                details.style.maxHeight = "0px";
             } else {
-                detailsCollapsible.classList.add("expanded");
-                detailsToggleBtn.classList.add("expanded");
+                details.classList.add("expanded");
+                toggleBtn.classList.add("expanded");
                 if (detailsText) detailsText.textContent = "Hide";
-                detailsCollapsible.style.maxHeight = detailsCollapsible.scrollHeight + "px";
+                details.style.maxHeight = details.scrollHeight + "px";
             }
-            setTimeout(() => this.UIManager.updateParentContainers(detailsCollapsible), 0);
+            setTimeout(() => this.UIManager.updateParentContainers(details), 0);
         });
-
-        return taskItem;
     },
 
     updateTaskElement: function (taskId, updatedTask) {
@@ -244,7 +271,7 @@ export const TaskRenderer = {
         }
     },
 
-    editTaskTitle: function (event, taskId) {
+    editTaskTitle: function (event) {
         const titleSpan = event.currentTarget;
         const container = titleSpan.closest(".title-container");
         const input = container.querySelector(".title-edit");
@@ -261,7 +288,7 @@ export const TaskRenderer = {
         titleSpan.style.visibility = "visible";
     },
 
-    editTaskDescription: function (event, taskId) {
+    editTaskDescription: function (event) {
         const descriptionDiv = event.currentTarget;
         const container = descriptionDiv.closest(".description-container");
         const textarea = container.querySelector(".description-edit");
@@ -280,25 +307,6 @@ export const TaskRenderer = {
         const textarea = container.querySelector(".description-edit");
         textarea.style.display = "none";
         descriptionDiv.style.visibility = "visible";
-    },
-
-    toggleDueDateDropdown: function (event, taskId) {
-        const container = event.currentTarget.closest(".meta-item");
-        const dropdown = container.querySelector(".date-picker-dropdown");
-        document.querySelectorAll(".date-picker-dropdown").forEach((d) => {
-            if (d !== dropdown) d.style.display = "none";
-        });
-
-        dropdown.style.display = dropdown.style.display === "none" ? "flex" : "none";
-        if (dropdown.style.display === "flex") {
-            const closeDropdown = (e) => {
-                if (!container.contains(e.target)) {
-                    dropdown.style.display = "none";
-                    document.removeEventListener("click", closeDropdown);
-                }
-            };
-            setTimeout(() => document.addEventListener("click", closeDropdown), 0);
-        }
     },
 
     setQuickDate: function (event, taskId, type) {
@@ -380,22 +388,22 @@ export const TaskRenderer = {
     },
 
     updateCategoryDisplay: function (taskId, categoryId) {
-        const categoryElement = document.querySelectorAll(`.task-container[data-task-id="${taskId}"] .meta-row .meta-value`);
-        if (categoryElement[0]) {
-            const categoryName = DataManager.state.categories.find((c) => c.id === categoryId)?.name || "None";
-            categoryElement[0].textContent = categoryName;
+        const categoryElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .meta-row .category-container`);
+        if (categoryElement) {
+            const categoryName = DataManager.getCategoryNameById(categoryId) || "None";
+            categoryElement.textContent = categoryName;
         }
     },
 
     updateTagsDisplay: function (taskId, tags) {
-        const tagsElement = document.querySelectorAll(`.task-container[data-task-id="${taskId}"] .meta-row .meta-value`);
-        if (tagsElement[1]) {
-            tagsElement[1].textContent = tags.length ? tags.map((tag) => DataManager.getTagNameById(tag)).join(", ") : "None";
+        const tagsElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .meta-row .tag-pill-container`);
+        if (tagsElement) {
+            tagsElement.innerHTML = tags.length ? tags.map((tag) => `<span class="tag-pill">${DataManager.getTagNameById(tag)}</span>`).join("") : "None";
         }
     },
 
     updateStatusDisplay: function (taskId, status) {
-        const statusElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .status`);
+        const statusElement = document.querySelector(`.task-container[data-task-id="${taskId}"] .meta-row .status`);
         if (statusElement) {
             statusElement.textContent = status || "Not Started";
         }
